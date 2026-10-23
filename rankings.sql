@@ -1,6 +1,7 @@
 -- @title Where does every DuckDB extension stand?
 -- @nav Rankings
 -- @order 3
+-- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, rank
 -- @description Every extension ranked by last week's downloads, with its contributor, trend and spike flag; filter to one contributor.
 -- @vars contributor
@@ -16,7 +17,6 @@
 -- same, copied.
 
 SELECT 'en-GB'::LOCALE;
-SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';

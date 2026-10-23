@@ -1,6 +1,7 @@
 -- @title How is one contributor doing against the whole DuckDB extension ecosystem?
 -- @nav Contributor
 -- @order 5
+-- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, contributors, growth
 -- @description One contributor's downloads, share, rank, extensions and growth, against every community extension together.
 -- @vars contributor
@@ -26,7 +27,6 @@
 -- into the thousands while the ecosystem's stays in the hundreds.
 
 SELECT 'en-GB'::LOCALE;
-SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';

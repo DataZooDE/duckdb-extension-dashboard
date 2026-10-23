@@ -1,6 +1,7 @@
 -- @title Is the DuckDB extension ecosystem growing, and what's hot?
 -- @nav Overview
 -- @order 1
+-- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, growth
 -- @description Weekly installs of DuckDB community extensions: the total, last week's top 20, the biggest movers and the newcomers.
 --
@@ -30,7 +31,6 @@
 --     listed weeks), shown next to the raw counts.
 
 SELECT 'en-GB'::LOCALE;
-SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';

@@ -1,6 +1,7 @@
 -- @title Who builds the DuckDB extension ecosystem?
 -- @nav Contributors
 -- @order 4
+-- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, contributors
 -- @description Every contributor (the GitHub owner of an extension's repo) ranked by last week's downloads, the top 15, and the top 8's share over time.
 --
@@ -19,7 +20,6 @@
 -- same, copied.
 
 SELECT 'en-GB'::LOCALE;
-SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';

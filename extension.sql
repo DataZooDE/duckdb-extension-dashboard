@@ -1,6 +1,7 @@
 -- @title How is one DuckDB extension doing?
 -- @nav Extension
 -- @order 2
+-- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, rank
 -- @description One extension's weekly installs with spikes marked, its rank and share over time, and its neighbours in the ranking.
 -- @vars extension
@@ -15,7 +16,6 @@
 -- the setup views below are the same, copied.
 
 SELECT 'en-GB'::LOCALE;
-SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
