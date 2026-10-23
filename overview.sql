@@ -155,8 +155,10 @@ SELECT extension ::XAXIS, downloads ::BARCHART_STACKED,
        1::FLIP, '/d/extension?v.extension={x}'::LINK,
        'Top 20, 7 days to ' || getvariable('last_label') ::TITLE,
        'Spike: more than 5x the median of the extension''s previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads). Click a bar to open the extension.'::INFO
-FROM ext_weeks WHERE week_start = getvariable('last_ws')
-ORDER BY downloads DESC, extension LIMIT 20;
+FROM (SELECT * FROM ext_weeks WHERE week_start = getvariable('last_ws')
+      ORDER BY downloads DESC, extension LIMIT 20)
+-- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
+ORDER BY downloads ASC, extension DESC;
 
 -- Movers: the latest capture against the mean of the 4 weeks with data
 -- before it; at least 1,000 downloads on one side, so tiny extensions

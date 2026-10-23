@@ -5,15 +5,36 @@
   "anofox_visualization": "v2026.10.23",
   "duckdb": "v1.5.6",
   "dashboards": [
-    {"file": "overview.sql", "question": "Is the extension ecosystem growing, and what's hot?"},
-    {"file": "extension.sql", "question": "How is one extension doing?"},
-    {"file": "rankings.sql", "question": "Where does every extension stand?"},
-    {"file": "contributors.sql", "question": "Who builds the ecosystem?"},
-    {"file": "contributor.sql", "question": "How is one contributor doing versus the whole ecosystem?"}
+    {
+      "file": "overview.sql",
+      "question": "Is the extension ecosystem growing, and what's hot?"
+    },
+    {
+      "file": "extension.sql",
+      "question": "How is one extension doing?"
+    },
+    {
+      "file": "rankings.sql",
+      "question": "Where does every extension stand?"
+    },
+    {
+      "file": "contributors.sql",
+      "question": "Who builds the ecosystem?"
+    },
+    {
+      "file": "contributor.sql",
+      "question": "How is one contributor doing versus the whole ecosystem?"
+    },
+    {
+      "file": "about.sql",
+      "question": "Who made this, and how current is the data?"
+    }
   ],
   "input": {
     "kind": "data root: downloads.parquet (one row per ISO week and extension: year, week, week_start, extension, downloads, last_update, provisional) and meta.json, both written by scripts/fetch.sh from DuckDB's public download metrics",
-    "required": ["downloads"],
+    "required": [
+      "downloads"
+    ],
     "optional": [],
     "data_default": "data",
     "variables": {

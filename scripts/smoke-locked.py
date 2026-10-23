@@ -38,6 +38,9 @@ cases = [
     ("rankings", {}),
     ("rankings", {"highlight": ""}),
     ("rankings", {"highlight": "no-such-extension"}),
+    ("contributors", {}),
+    ("contributor", {}),
+    ("about", {}),
 ]
 if a.unlisted:
     cases.append(("extension", {"extension": a.unlisted}))

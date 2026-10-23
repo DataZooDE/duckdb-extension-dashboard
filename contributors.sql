@@ -86,9 +86,52 @@ SELECT round(100.0 * sum(downloads) / any_value(total), 1) ::PERCENT, 'Top 10 co
 FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws') ORDER BY downloads DESC LIMIT 10);
 SELECT 1::ENDGROUP;
 
+-- Top 15, twice: raw, and spike-corrected (downloads_corrected from the
+-- fetch step's scripts/spikes.sql: Hampel filter, real level shifts kept via
+-- anofox-forecast changepoints).
+SELECT 4::COL; SELECT 150::HEIGHT;
+SELECT contributor ::XAXIS, downloads ::BARCHART_STACKED,
+       CASE WHEN spike THEN 'Spike in an extension' ELSE 'Steady' END ::CATEGORY,
+       'Spike in an extension:warn; Steady:neutral'::COLORS,
+       1::FLIP, '/d/contributor?v.contributor={x}'::LINK,
+       'Top 15, raw' ::TITLE,
+       'Downloads of all of a contributor''s extensions together, 7 days to ' || getvariable('last_label') || '. Click a bar to open the contributor.'::INFO
+FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws')
+      ORDER BY downloads DESC, contributor LIMIT 15)
+-- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
+ORDER BY downloads ASC, contributor DESC;
+
+SELECT 4::COL; SELECT 150::HEIGHT;
+SELECT contributor ::XAXIS, downloads_corrected ::BARCHART_STACKED,
+       CASE WHEN corrected_any THEN 'Spike corrected' ELSE 'As measured' END ::CATEGORY,
+       'Spike corrected:warn; As measured:neutral'::COLORS,
+       1::FLIP, '/d/contributor?v.contributor={x}'::LINK,
+       'Top 15, spike-corrected' ::TITLE,
+       'Each extension''s spike weeks replaced by their 9-week window median: a Hampel filter (more than max(3 x 1.4826 x MAD, the median) above the median, at least 1,000 downloads), keeping real level shifts that anofox-forecast''s changepoint detection confirms over the next 3 weeks. anofox-statistics'' AID outlier flags agree on 90 % of these spikes. A last-week jump counts as a spike until it lasts.'::INFO
+FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws')
+      ORDER BY downloads_corrected DESC, contributor LIMIT 15)
+-- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
+ORDER BY downloads_corrected ASC, contributor DESC;
+
+-- Share over time: the 6 contributors with the most downloads over the last
+-- 13 weeks with data (steadier than one week), the rest as Others (7
+-- series: design/many-series warns past 7); only
+-- from 2025-11-10, when the site started listing every extension.
+SELECT 4::COL; SELECT 150::HEIGHT;
+WITH top6 AS (SELECT contributor FROM contrib_weeks WHERE wi > getvariable('last_wi') - 13
+              GROUP BY 1 ORDER BY sum(downloads) DESC, contributor LIMIT 6),
+s AS (SELECT week_start, CASE WHEN contributor IN (SELECT contributor FROM top6) THEN contributor ELSE 'Others' END AS who,
+             100.0 * sum(downloads) / any_value(total) AS share
+      FROM contrib_weeks WHERE week_start >= getvariable('full_list_from') GROUP BY ALL)
+SELECT week_start ::XAXIS, who ::CATEGORY, round(share, 2) ::AREACHART_STACKED, 'percent'::YFORMAT,
+       'Share of all downloads: top 6 contributors and Others, since 10 Nov 2025' ::TITLE,
+       'Each week''s downloads split by contributor, as a percentage of that week''s total. Top 6: the most downloads over the last 13 weeks with data. Starts 2025-11-10, when the site began listing every extension (before it, only about the top 50).'::INFO
+FROM s
+ORDER BY week_start, CASE WHEN who = 'Others' THEN 1 ELSE 0 END, who;
+
 -- Every contributor: the latest week against the mean of the 4 weeks with
 -- data before it.
-SELECT 8::COL;
+SELECT 12::COL;
 SELECT 'none'::TOTALS;
 WITH cur AS (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws')),
 before AS (SELECT contributor, sum(downloads) / 4.0 AS before4 FROM contrib_weeks
@@ -121,42 +164,3 @@ LEFT JOIN spark s USING (contributor)
 LEFT JOIN top t USING (contributor)
 LEFT JOIN info i USING (contributor)
 ORDER BY c.downloads DESC, c.contributor;
-
--- Top 15, twice: raw, and spike-corrected (downloads_corrected from the
--- fetch step's scripts/spikes.sql: Hampel filter, real level shifts kept via
--- anofox-forecast changepoints).
-SELECT 2::COL; SELECT 330::HEIGHT;
-SELECT contributor ::XAXIS, downloads ::BARCHART_STACKED,
-       CASE WHEN spike THEN 'Spike in an extension' ELSE 'Steady' END ::CATEGORY,
-       'Spike in an extension:warn; Steady:neutral'::COLORS,
-       1::FLIP, '/d/contributor?v.contributor={x}'::LINK,
-       'Top 15, raw' ::TITLE,
-       'Downloads of all of a contributor''s extensions together, 7 days to ' || getvariable('last_label') || '. Click a bar to open the contributor.'::INFO
-FROM contrib_weeks WHERE week_start = getvariable('last_ws')
-ORDER BY downloads DESC, contributor LIMIT 15;
-
-SELECT 2::COL; SELECT 330::HEIGHT;
-SELECT contributor ::XAXIS, downloads_corrected ::BARCHART_STACKED,
-       CASE WHEN corrected_any THEN 'Spike corrected' ELSE 'As measured' END ::CATEGORY,
-       'Spike corrected:warn; As measured:neutral'::COLORS,
-       1::FLIP, '/d/contributor?v.contributor={x}'::LINK,
-       'Top 15, spike-corrected' ::TITLE,
-       'Each extension''s spike weeks replaced by their 9-week window median: a Hampel filter (more than max(3 x 1.4826 x MAD, the median) above the median, at least 1,000 downloads), keeping real level shifts that anofox-forecast''s changepoint detection confirms over the next 3 weeks. anofox-statistics'' AID outlier flags agree on 90 % of these spikes. A last-week jump counts as a spike until it lasts.'::INFO
-FROM contrib_weeks WHERE week_start = getvariable('last_ws')
-ORDER BY downloads_corrected DESC, contributor LIMIT 15;
-
--- Share over time: the 6 contributors with the most downloads over the last
--- 13 weeks with data (steadier than one week), the rest as Others (7
--- series: design/many-series warns past 7); only
--- from 2025-11-10, when the site started listing every extension.
-SELECT 12::COL; SELECT 103::HEIGHT;
-WITH top6 AS (SELECT contributor FROM contrib_weeks WHERE wi > getvariable('last_wi') - 13
-              GROUP BY 1 ORDER BY sum(downloads) DESC, contributor LIMIT 6),
-s AS (SELECT week_start, CASE WHEN contributor IN (SELECT contributor FROM top6) THEN contributor ELSE 'Others' END AS who,
-             100.0 * sum(downloads) / any_value(total) AS share
-      FROM contrib_weeks WHERE week_start >= getvariable('full_list_from') GROUP BY ALL)
-SELECT week_start ::XAXIS, who ::CATEGORY, round(share, 2) ::AREACHART_STACKED, 'percent'::YFORMAT,
-       'Share of all downloads: top 6 contributors and Others, since 10 Nov 2025' ::TITLE,
-       'Each week''s downloads split by contributor, as a percentage of that week''s total. Top 6: the most downloads over the last 13 weeks with data. Starts 2025-11-10, when the site began listing every extension (before it, only about the top 50).'::INFO
-FROM s
-ORDER BY week_start, CASE WHEN who = 'Others' THEN 1 ELSE 0 END, who;
