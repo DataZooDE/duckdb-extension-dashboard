@@ -19,8 +19,7 @@
     "variables": {
       "anofox_data": "the data root",
       "extension": "the extension shown on extension.sql (dropdown, ?v.extension=<name>; a path variable on the locked server)",
-      "contributor": "contributor.sql: the contributor shown (dropdown, ?v.contributor=<name>, links from contributors.sql; default DataZooDE). Not a path variable: a contributor or group name need not be a plain name",
-      "highlight": "rankings.sql: rows whose name contains this text are flagged and summed (text input, default anofox)"
+      "contributor": "contributor.sql: the contributor shown (dropdown, ?v.contributor=<name>, links from contributors.sql; default DataZooDE); on rankings.sql the same variable filters the table (default (all)). Not a path variable: a contributor or group name need not be a plain name"
     }
   },
   "prepare": "scripts/copy-demo.sh",

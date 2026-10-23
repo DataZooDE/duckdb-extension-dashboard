@@ -2,15 +2,16 @@
 -- @nav Rankings
 -- @order 3
 -- @tags duckdb, community extensions, downloads, rank
--- @description Every extension ranked by last week's downloads, with its trend and spike flag; highlight a family of extensions by name.
--- @vars highlight
+-- @description Every extension ranked by last week's downloads, with its contributor, trend and spike flag; filter to one contributor.
+-- @vars contributor
 --
 -- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.23 (blueprint.json)
 --
--- `highlight` (the text input, ?v.highlight=<text>; default anofox, the
--- anofox_* extensions) flags every extension whose name contains it,
--- ignoring case, and the KPI row sums them; an empty value flags none.
--- Definitions (week, provisional, gap, "not listed", spike, 4-week
+-- `contributor` (the dropdown, ?v.contributor=<name>; default "(all)", every
+-- contributor) narrows the table and the KPI row to one contributor's
+-- extensions; the rank stays the rank among all extensions. DataZooDE's
+-- extensions are always starred in the Contributor column. Contributor
+-- and groups.csv: see contributors.sql's header. Definitions (week, provisional, gap, "not listed", spike, 4-week
 -- median): see overview.sql's header -- the setup views below are the
 -- same, copied.
 
@@ -18,6 +19,7 @@ SELECT 'en-GB'::LOCALE;
 SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
+SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
 
 CREATE OR REPLACE TEMP VIEW weeks AS
@@ -42,30 +44,46 @@ FROM (SELECT d.extension, d.week_start, d.downloads, w.wi, w.total,
 SET VARIABLE last_ws = (SELECT max(week_start) FROM weeks);
 SET VARIABLE prev_ws = (SELECT max(week_start) FROM weeks WHERE week_start < getvariable('last_ws'));
 SET VARIABLE last_label = (SELECT strftime(last_update, '%-d %b') FROM weeks WHERE week_start = getvariable('last_ws'));
-SET VARIABLE hl = lower(trim(coalesce(getvariable('highlight'), '')));
+SET VARIABLE flt = coalesce(nullif(getvariable('contributor'), ''), '(all)');
 
-SELECT 'anofox' AS highlight ::TEXT, 'Highlight extensions whose name contains'::LABEL;
+CREATE OR REPLACE TEMP VIEW user_groups AS
+SELECT trim(split_part(l, ',', 1), ' "') AS extension, any_value(trim(split_part(l, ',', 2), ' "')) AS grp
+FROM (SELECT unnest(string_split(replace(content, chr(13), ''), chr(10))) AS l
+      FROM read_text(getvariable('anofox_data') || '/groups.cs[v]'))
+WHERE trim(l) <> '' AND lower(trim(split_part(l, ',', 1), ' "')) <> 'extension'
+  AND trim(split_part(l, ',', 2), ' "') <> ''
+GROUP BY 1;
 
--- The highlighted family, as if it were one extension.
+CREATE OR REPLACE TEMP VIEW ext_owner AS
+SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo
+FROM read_parquet(getvariable('f_extensions')) e LEFT JOIN user_groups g USING (extension);
+
+-- "(all)" first (the default), then every contributor by last week's
+-- downloads.
+SELECT v AS contributor ::DROPDOWN, l AS contributor_label ::OPTION_LABEL, 'Contributor'::LABEL
+FROM (SELECT 0 AS o, '(all)' AS v, 'All contributors' AS l, NULL::HUGEINT AS d
+      UNION ALL
+      SELECT 1, o.contributor, o.contributor || '  ·  ' || format('{:,}', coalesce(sum(x.downloads), 0)) || ' last week', coalesce(sum(x.downloads), 0)
+      FROM ext_owner o LEFT JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
+      WHERE o.extension IN (SELECT extension FROM ext_weeks)
+      GROUP BY o.contributor)
+ORDER BY o, d DESC, v;
+
+-- The shown extensions (all, or one contributor's) in the latest week.
 SELECT ''::GROUP;
 SELECT count(*) ::METRIC,
-       CASE WHEN getvariable('hl') = '' THEN 'Highlighted (type a name above)'
-            ELSE 'Extensions matching "' || getvariable('hl') || '"' END ::LABEL
-FROM ext_weeks
-WHERE week_start = getvariable('last_ws') AND getvariable('hl') <> '' AND contains(lower(extension), getvariable('hl'));
-SELECT sum(downloads) ::METRIC, 'Their downloads, 7 days to ' || getvariable('last_label') ::LABEL
-FROM ext_weeks
-WHERE week_start = getvariable('last_ws') AND getvariable('hl') <> '' AND contains(lower(extension), getvariable('hl'));
-SELECT CASE WHEN h.n > 0 THEN 1 + (SELECT count(*) FROM ext_weeks o
-                                   WHERE o.week_start = getvariable('last_ws') AND o.downloads > h.d
-                                     AND NOT contains(lower(o.extension), getvariable('hl'))) END ::METRIC,
-       'Rank if they were one extension' ::LABEL,
-       'Where the highlighted extensions'' combined downloads would rank among the other extensions in the latest week.'::INFO
-FROM (SELECT count(*) AS n, sum(downloads) AS d FROM ext_weeks
-      WHERE week_start = getvariable('last_ws') AND getvariable('hl') <> '' AND contains(lower(extension), getvariable('hl'))) h;
-SELECT round(100.0 * sum(downloads) / any_value(total), 2) ::PERCENT, 'Their share of all downloads'::LABEL
-FROM ext_weeks
-WHERE week_start = getvariable('last_ws') AND getvariable('hl') <> '' AND contains(lower(extension), getvariable('hl'));
+       'Extensions (' || count(x.extension) || ' downloaded last week)' ::LABEL
+FROM ext_owner o LEFT JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
+WHERE (getvariable('flt') = '(all)' OR o.contributor = getvariable('flt')) AND o.extension IN (SELECT extension FROM ext_weeks);
+SELECT sum(x.downloads) ::METRIC, 'Their downloads, 7 days to ' || getvariable('last_label') ::LABEL
+FROM ext_owner o JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
+WHERE getvariable('flt') = '(all)' OR o.contributor = getvariable('flt');
+SELECT round(100.0 * sum(x.downloads) / any_value(x.total), 2) ::PERCENT, 'Their share of all downloads'::LABEL
+FROM ext_owner o JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
+WHERE getvariable('flt') = '(all)' OR o.contributor = getvariable('flt');
+SELECT min(x.rnk) ::METRIC, 'Best rank among all extensions'::LABEL
+FROM ext_owner o JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
+WHERE getvariable('flt') = '(all)' OR o.contributor = getvariable('flt');
 SELECT 1::ENDGROUP;
 
 -- One row per extension ever listed: the latest week's ranking first, then
@@ -80,7 +98,7 @@ everyone AS (SELECT extension, any_value(first_seen) AS first_seen FROM ext_week
 SELECT c.rnk AS "Rank" ::PAGED,
        p.rnk - c.rnk AS "Places" ::COLORSCALE_DIVERGING,
        e.extension AS "Extension",
-       CASE WHEN getvariable('hl') <> '' AND contains(lower(e.extension), getvariable('hl')) THEN '★ highlighted' END AS "Highlight",
+       CASE WHEN o.contributor = 'DataZooDE' THEN '★ DataZooDE' ELSE o.contributor END AS "Contributor",
        c.downloads AS "Last week",
        p.downloads AS "Previous week",
        CASE WHEN p.downloads > 0 THEN round(100.0 * (c.downloads / p.downloads - 1)) END AS "Change %" ::PERCENT,
@@ -90,10 +108,13 @@ SELECT c.rnk AS "Rank" ::PAGED,
             ELSE strftime(e.first_seen, '%Y-%m-%d') END AS "First seen",
        CASE WHEN c.spike THEN 'Spike – watch' WHEN c.extension IS NULL THEN 'Not listed' ELSE 'Steady' END AS "Pattern" ::BADGE,
        '/d/extension?v.extension={Extension}' AS "Details" ::LINK,
-       'Every extension, ranked by downloads, 7 days to ' || getvariable('last_label') ::TITLE,
-       'Places: previous week''s rank minus this week''s (positive = moved up). 4-week median: this and the previous 3 listed weeks, robust to one-week spikes. Last 13 weeks: the listed weeks among the last 13 with data. First seen: "by" a date in or before 2025-11-10, when the site still listed only about the top 50 extensions (the extension may be older). Spike – watch: more than 5x the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads).'::INFO
+       CASE WHEN getvariable('flt') = '(all)' THEN 'Every extension' ELSE 'Extensions of ' || getvariable('flt') END
+         || ', ranked by downloads, 7 days to ' || getvariable('last_label') ::TITLE,
+       'Rank: among all extensions, whatever the filter. Contributor: the GitHub owner of the extension''s repo ("(unlisted)": no longer in the community-extensions repo; ★ marks DataZooDE). Places: previous week''s rank minus this week''s (positive = moved up). 4-week median: this and the previous 3 listed weeks, robust to one-week spikes. Last 13 weeks: the listed weeks among the last 13 with data. First seen: "by" a date in or before 2025-11-10, when the site still listed only about the top 50 extensions (the extension may be older). Spike – watch: more than 5x the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads).'::INFO
 FROM everyone e
 LEFT JOIN cur c USING (extension)
 LEFT JOIN prev p USING (extension)
 LEFT JOIN spark s USING (extension)
+LEFT JOIN ext_owner o USING (extension)
+WHERE getvariable('flt') = '(all)' OR o.contributor = getvariable('flt')
 ORDER BY c.rnk NULLS LAST, e.extension;

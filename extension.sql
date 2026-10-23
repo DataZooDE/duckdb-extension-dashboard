@@ -18,6 +18,7 @@ SELECT 'en-GB'::LOCALE;
 SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
+SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
 
 CREATE OR REPLACE TEMP VIEW weeks AS
@@ -39,12 +40,26 @@ FROM (SELECT d.extension, d.week_start, d.downloads, w.wi, w.total,
       FROM read_parquet(getvariable('f_downloads')) d JOIN weeks w USING (week_start)
       WINDOW prev8 AS (PARTITION BY d.extension ORDER BY w.wi ROWS BETWEEN 8 PRECEDING AND 1 PRECEDING));
 
+-- Contributor (and groups.csv): see contributors.sql's header.
+CREATE OR REPLACE TEMP VIEW user_groups AS
+SELECT trim(split_part(l, ',', 1), ' "') AS extension, any_value(trim(split_part(l, ',', 2), ' "')) AS grp
+FROM (SELECT unnest(string_split(replace(content, chr(13), ''), chr(10))) AS l
+      FROM read_text(getvariable('anofox_data') || '/groups.cs[v]'))
+WHERE trim(l) <> '' AND lower(trim(split_part(l, ',', 1), ' "')) <> 'extension'
+  AND trim(split_part(l, ',', 2), ' "') <> ''
+GROUP BY 1;
+
+CREATE OR REPLACE TEMP VIEW ext_owner AS
+SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo
+FROM read_parquet(getvariable('f_extensions')) e LEFT JOIN user_groups g USING (extension);
+
 SET VARIABLE last_ws = (SELECT max(week_start) FROM weeks);
 SET VARIABLE prev_ws = (SELECT max(week_start) FROM weeks WHERE week_start < getvariable('last_ws'));
 SET VARIABLE last_label = (SELECT strftime(last_update, '%-d %b') FROM weeks WHERE week_start = getvariable('last_ws'));
 SET VARIABLE sel = coalesce(nullif(getvariable('extension'), ''),
                             (SELECT extension FROM ext_weeks WHERE week_start = getvariable('last_ws')
                              ORDER BY downloads DESC, extension LIMIT 1));
+SET VARIABLE sel_contributor = coalesce((SELECT contributor FROM ext_owner WHERE extension = getvariable('sel')), '(unlisted)');
 
 -- Every extension ever listed, the latest week's ranking first (so the
 -- default, the first option, is the top extension); the label carries the
@@ -115,7 +130,7 @@ SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
        CASE WHEN l.series = 'Weekly downloads' THEN g.gap_from END ::XBAND_FROM,
        CASE WHEN l.series = 'Weekly downloads' THEN g.gap_to END ::XBAND_TO,
        CASE WHEN l.series = 'Weekly downloads' AND g.gap_from IS NOT NULL THEN 'No data' END ::XBAND_LABEL,
-       'Weekly downloads of ' || getvariable('sel') || ', raw and 4-week median' ::TITLE,
+       'Weekly downloads of ' || getvariable('sel') || ' (by ' || getvariable('sel_contributor') || '), raw and 4-week median' ::TITLE,
        'INSTALL downloads per weekly capture; shaded weeks have no data (a gap, not a zero), and a week the extension is not listed in has no point. The 4-week median (this and its previous 3 listed weeks) ignores one-week spikes; the strip below ticks each spike (more than 5x the median of its previous 8 listed weeks, at least 4 of them, and at least 1,000 downloads).'::INFO
 FROM long l
 LEFT JOIN (SELECT g.*, (SELECT max(e.week_start) FROM e WHERE e.week_start < g.gap_from) AS host FROM gaps g) g
@@ -138,12 +153,13 @@ WITH me AS (SELECT rnk FROM ext_weeks WHERE extension = getvariable('sel') AND w
 p AS (SELECT extension, rnk FROM ext_weeks WHERE week_start = getvariable('prev_ws'))
 SELECT c.rnk AS "Rank" ::TABLE,
        CASE WHEN c.extension = getvariable('sel') THEN '▶ ' || c.extension ELSE c.extension END AS "Extension",
+       CASE WHEN o.contributor = 'DataZooDE' THEN '★ DataZooDE' ELSE coalesce(o.contributor, '(unlisted)') END AS "Contributor",
        c.downloads AS "Last week",
        p.rnk - c.rnk AS "Places" ::COLORSCALE_DIVERGING,
        '?v.extension=' || c.extension AS "Open" ::LINK,
        'Neighbours in the ranking, 7 days to ' || getvariable('last_label') ::TITLE,
        'Places: previous week''s rank minus this week''s (positive = moved up; empty = not listed the week before).'::INFO
-FROM ext_weeks c LEFT JOIN p USING (extension), me
+FROM ext_weeks c LEFT JOIN p USING (extension) LEFT JOIN ext_owner o USING (extension), me
 WHERE c.week_start = getvariable('last_ws') AND c.rnk BETWEEN me.rnk - 3 AND me.rnk + 3
 ORDER BY c.rnk, c.extension;
 
