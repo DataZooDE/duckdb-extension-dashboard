@@ -169,7 +169,7 @@ SELECT 4::COL;
 SELECT 'none'::TOOLBAR;
 SELECT 'none'::TOTALS;
 WITH c AS (SELECT * FROM contrib_weeks WHERE contributor = getvariable('sel')),
-win AS (SELECT * FROM (VALUES (1, 'Last 4 weeks vs the 4 before', 4), (2, 'Last 13 weeks vs the 13 before', 13)) t(o, label, n)),
+win AS (SELECT * FROM (VALUES (1, '4 wk vs 4 before', 4), (2, '13 wk vs 13 before', 13)) t(o, label, n)),
 g AS (
   SELECT win.o, win.label,
          sum(c.downloads) FILTER (WHERE c.wi > getvariable('last_wi') - win.n) AS c_now,
@@ -178,9 +178,9 @@ g AS (
          sum(c.total) FILTER (WHERE c.wi <= getvariable('last_wi') - win.n AND c.wi > getvariable('last_wi') - 2 * win.n) AS t_before
   FROM win, c GROUP BY ALL)
 SELECT label AS "Window" ::TABLE,
-       CASE WHEN c_before > 0 THEN round(100.0 * (c_now / c_before - 1)) END AS "This contributor" ::PERCENT,
-       round(100.0 * (t_now / t_before - 1)) AS "All extensions" ::PERCENT,
-       CASE WHEN c_before > 0 THEN round(100.0 * (c_now / c_before - 1)) - round(100.0 * (t_now / t_before - 1)) END AS "Difference (pp)" ::COLORSCALE_DIVERGING,
+       CASE WHEN c_before > 0 THEN round(100.0 * (c_now / c_before - 1)) END AS "Contributor" ::PERCENT,
+       round(100.0 * (t_now / t_before - 1)) AS "All" ::PERCENT,
+       CASE WHEN c_before > 0 THEN round(100.0 * (c_now / c_before - 1)) - round(100.0 * (t_now / t_before - 1)) END AS "Δ pp" ::COLORSCALE_DIVERGING,
        'Growth: ' || getvariable('sel') || ' vs all extensions' ::TITLE,
        'Downloads summed over the latest N weeks with data against the N weeks before them, for the contributor and for every extension together. Difference: the contributor''s growth minus the ecosystem''s, in percentage points (positive = gaining share). The latest week is provisional and spikes count in full: see the Pattern badges.'::INFO
 FROM g

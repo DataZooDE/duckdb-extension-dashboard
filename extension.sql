@@ -178,7 +178,6 @@ SELECT c.rnk AS "Rank" ::TABLE,
        CASE WHEN o.contributor = 'DataZooDE' THEN '★ DataZooDE' ELSE coalesce(o.contributor, '(unlisted)') END AS "Contributor",
        c.downloads AS "Last week",
        p.rnk - c.rnk AS "Places" ::COLORSCALE_DIVERGING,
-       '?v.extension=' || c.extension AS "Open" ::LINK,
        'Neighbours in the ranking, 7 days to ' || getvariable('last_label') ::TITLE,
        'Places: previous week''s rank minus this week''s (positive = moved up; empty = not listed the week before).'::INFO
 FROM ext_weeks c LEFT JOIN p USING (extension) LEFT JOIN ext_owner o USING (extension), me

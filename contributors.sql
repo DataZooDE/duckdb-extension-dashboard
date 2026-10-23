@@ -86,10 +86,12 @@ SELECT round(100.0 * sum(downloads) / any_value(total), 1) ::PERCENT, 'Top 10 co
 FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws') ORDER BY downloads DESC LIMIT 10);
 SELECT 1::ENDGROUP;
 
+SELECT 'Top contributors'::TAB;
+
 -- Top 15, twice: raw, and spike-corrected (downloads_corrected from the
 -- fetch step's scripts/spikes.sql: Hampel filter, real level shifts kept via
 -- anofox-forecast changepoints).
-SELECT 4::COL; SELECT 150::HEIGHT;
+SELECT 4::COL; SELECT 420::HEIGHT;
 SELECT contributor ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike in an extension' ELSE 'Steady' END ::CATEGORY,
        'Spike in an extension:warn; Steady:neutral'::COLORS,
@@ -101,7 +103,7 @@ FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws')
 -- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
 ORDER BY downloads ASC, contributor DESC;
 
-SELECT 4::COL; SELECT 150::HEIGHT;
+SELECT 4::COL; SELECT 420::HEIGHT;
 SELECT contributor ::XAXIS, downloads_corrected ::BARCHART_STACKED,
        CASE WHEN corrected_any THEN 'Spike corrected' ELSE 'As measured' END ::CATEGORY,
        'Spike corrected:warn; As measured:neutral'::COLORS,
@@ -117,7 +119,7 @@ ORDER BY downloads_corrected ASC, contributor DESC;
 -- 13 weeks with data (steadier than one week), the rest as Others (7
 -- series: design/many-series warns past 7); only
 -- from 2025-11-10, when the site started listing every extension.
-SELECT 4::COL; SELECT 150::HEIGHT;
+SELECT 4::COL; SELECT 420::HEIGHT;
 WITH top6 AS (SELECT contributor FROM contrib_weeks WHERE wi > getvariable('last_wi') - 13
               GROUP BY 1 ORDER BY sum(downloads) DESC, contributor LIMIT 6),
 s AS (SELECT week_start, CASE WHEN contributor IN (SELECT contributor FROM top6) THEN contributor ELSE 'Others' END AS who,
@@ -128,6 +130,8 @@ SELECT week_start ::XAXIS, who ::CATEGORY, round(share, 2) ::AREACHART_STACKED, 
        'Each week''s downloads split by contributor, as a percentage of that week''s total. Top 6: the most downloads over the last 13 weeks with data. Starts 2025-11-10, when the site began listing every extension (before it, only about the top 50).'::INFO
 FROM s
 ORDER BY week_start, CASE WHEN who = 'Others' THEN 1 ELSE 0 END, who;
+
+SELECT 'All contributors'::TAB;
 
 -- Every contributor: the latest week against the mean of the 4 weeks with
 -- data before it.
