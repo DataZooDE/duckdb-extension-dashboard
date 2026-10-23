@@ -125,7 +125,7 @@ long AS (
   SELECT week_start, getvariable('sel') AS series, idx_c AS v FROM s
   UNION ALL
   SELECT week_start, 'All extensions', idx_t FROM s)
-SELECT week_start ::XAXIS, series ::CATEGORY, round(v, 1) ::LINECHART, 'log10'::YSCALE, 'comma'::YFORMAT, 100::REFLINE,
+SELECT week_start ::XAXIS, series ::CATEGORY, round(v, 1) ::LINECHART, 'comma'::YFORMAT, 100::REFLINE,
        getvariable('sel') || ' vs all extensions, indexed (100 = weeks of ' || (SELECT strftime(s, '%-d %b %Y') FROM start) || ')' ::TITLE,
        'Both lines are 100 at the mean of the base weeks: the 4 weeks with data from ' || (SELECT strftime(s, '%-d %b %Y') FROM start) || ', i.e. from 2025-11-10 (the first week the site lists every extension, so the total is comparable from there on) or the contributor''s first week with downloads after it. Log scale: equal steps are equal growth factors. A line above the other has grown faster since the base weeks.' ::INFO
 FROM long
