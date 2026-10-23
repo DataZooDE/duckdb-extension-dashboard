@@ -7,7 +7,8 @@
   "dashboards": [
     {"file": "overview.sql", "question": "Is the extension ecosystem growing, and what's hot?"},
     {"file": "extension.sql", "question": "How is one extension doing?"},
-    {"file": "rankings.sql", "question": "Where does every extension stand?"}
+    {"file": "rankings.sql", "question": "Where does every extension stand?"},
+    {"file": "contributors.sql", "question": "Who builds the ecosystem?"}
   ],
   "input": {
     "kind": "data root: downloads.parquet (one row per ISO week and extension: year, week, week_start, extension, downloads, last_update, provisional) and meta.json, both written by scripts/fetch.sh from DuckDB's public download metrics",
