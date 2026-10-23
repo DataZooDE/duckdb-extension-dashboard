@@ -106,6 +106,9 @@ else
   git -C "$RAW/community-extensions" sparse-checkout set --no-cone '/extensions/*/description.yml'
   git -C "$RAW/community-extensions" rev-parse HEAD >"$RAW/_extensions_commit"
   python3 "$HERE/parse-descriptions.py" "$RAW/community-extensions" "$RAW/extensions.jsonl"
+  # DuckDB releases (the vertical lines on the weekly charts)
+  curl -fsS --retry 3 --retry-delay 2 -o "$RAW/duckdb-releases.json" \
+    "https://api.github.com/repos/duckdb/duckdb/releases?per_page=100"
 fi
 [ -f "$RAW/extensions.jsonl" ] || { echo "fetch.sh: $RAW has no extensions.jsonl (fetched before the metadata step: fetch again)" >&2; exit 1; }
 
@@ -159,4 +162,11 @@ PY
 mv "$OUT/.downloads.parquet.tmp" "$OUT/downloads.parquet"
 mv "$OUT/.extensions.parquet.tmp" "$OUT/extensions.parquet"
 mv "$OUT/meta.json.tmp" "$OUT/meta.json"
-echo "wrote $OUT/downloads.parquet, $OUT/extensions.parquet and $OUT/meta.json"
+# duckdb_releases.parquet: one row per release DAY (non-prereleases; same-day
+# releases of two branches merged, e.g. "v1.5.4 / v1.4.5"); is_minor = an
+# x.y.0 release on that day (these get a label on the charts).
+if [ -f "$RAW/duckdb-releases.json" ]; then
+  "$DUCKDB" -batch :memory: -c "COPY (SELECT published_at::TIMESTAMP::DATE AS published, string_agg(tag_name, ' / ' ORDER BY tag_name DESC) AS versions, bool_or(regexp_matches(tag_name, '^v[0-9]+[.][0-9]+[.]0\$')) AS is_minor FROM read_json('$RAW/duckdb-releases.json', columns := {'tag_name': 'VARCHAR', 'published_at': 'VARCHAR', 'prerelease': 'BOOLEAN'}) WHERE NOT prerelease GROUP BY ALL ORDER BY published) TO '$OUT/.duckdb_releases.parquet.tmp' (FORMAT parquet);"
+  mv "$OUT/.duckdb_releases.parquet.tmp" "$OUT/duckdb_releases.parquet"
+fi
+echo "wrote $OUT/downloads.parquet, $OUT/extensions.parquet, $OUT/duckdb_releases.parquet and $OUT/meta.json"
