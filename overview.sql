@@ -30,6 +30,7 @@
 --     listed weeks), shown next to the raw counts.
 
 SELECT 'en-GB'::LOCALE;
+SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
@@ -60,11 +61,15 @@ SET VARIABLE last_label = (SELECT strftime(last_update, '%-d %b') FROM weeks WHE
 -- KPI strip: untitled, two lines per tile (value + label).
 SELECT ''::GROUP;
 SELECT c.total ::METRIC,
-       'Downloads, 7 days to ' || getvariable('last_label') || ' (' || printf('%+.0f', 100.0 * c.total / p.total - 100) || '% vs prior week)' ::LABEL,
-       'Every listed extension''s INSTALL downloads in the latest capture, against the capture before it. The latest capture is usually provisional (a 7-day window ending mid-week).'::INFO
+       'Downloads last week, all extensions (' || printf('%+.0f', 100.0 * c.total / p.total - 100) || '%)' ::LABEL,
+       'Every listed extension''s INSTALL downloads in the latest capture (7 days to ' || getvariable('last_label') || '), against the capture before it. The latest capture is usually provisional (a 7-day window ending mid-week).' ::INFO
 FROM weeks c, weeks p WHERE c.week_start = getvariable('last_ws') AND p.week_start = getvariable('prev_ws');
+SELECT sum(total) ::METRIC,
+       'All-time downloads (' || count(*) || ' published weeks)' ::LABEL,
+       'The sum over every weekly capture the site has published since ' || strftime(min(week_start), '%b %Y') || '. It is a lower bound: ' || (((max(week_start) - min(week_start)) // 7 + 1) - count(*)) || ' weeks in that span have no data, there is nothing before ' || strftime(min(week_start), '%b %Y') || ', and before 2025-11-10 only about the top 50 extensions were listed.' ::INFO
+FROM weeks;
 SELECT c.listed ::METRIC,
-       'Extensions with downloads (' || printf('%+d', c.listed - p.listed) || ' vs prior week)' ::LABEL
+       'Extensions downloaded (' || printf('%+d', c.listed - p.listed) || ')' ::LABEL
 FROM weeks c, weeks p WHERE c.week_start = getvariable('last_ws') AND p.week_start = getvariable('prev_ws');
 SELECT count(*) FILTER (WHERE first_seen = getvariable('last_ws')) ::METRIC, 'New this week'::LABEL,
        'Extensions listed for the first time in the latest capture.'::INFO
@@ -78,7 +83,7 @@ SELECT 1::ENDGROUP;
 -- The total, with gaps as gaps: a "No data" band over each run of missing
 -- weeks (hung on the data row right before it). The line itself still
 -- joins across a gap -- NULL rows don't break it, the renderer drops them.
-SELECT 8::COL; SELECT 188::HEIGHT;
+SELECT 8::COL; SELECT 182::HEIGHT;
 WITH span AS (
   SELECT range::DATE AS week_start
   FROM range((SELECT min(week_start) FROM weeks), getvariable('last_ws') + INTERVAL 1 DAY, INTERVAL 7 DAY)),
@@ -103,12 +108,12 @@ SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
        CASE WHEN l.series = 'Weekly downloads' AND l.week_start = getvariable('full_list_from') THEN l.week_start END ::XLINE,
        CASE WHEN l.series = 'Weekly downloads' AND l.week_start = getvariable('full_list_from') THEN 'Every extension listed from here' END ::XLINE_LABEL,
        CASE WHEN l.provisional AND l.week_start = getvariable('last_ws') THEN 'provisional' END ::ANNOTATE,
-       'Total weekly downloads, raw and 4-week median'::TITLE,
+       'Overall downloads per week, all extensions (raw and 4-week median)'::TITLE,
        'Sum over every listed extension per weekly capture; shaded weeks have no data (a gap, not a zero). Before 2025-11-10 the site listed only about the top 50 extensions, so part of the step there is coverage, not growth. The 4-week median (this and the previous 3 weeks with data) ignores one-week spikes.'::INFO
 FROM long l LEFT JOIN gaps g ON g.gap_from = l.week_start + 7
 ORDER BY l.week_start, l.series;
 
-SELECT 4::COL; SELECT 197::HEIGHT;
+SELECT 4::COL; SELECT 190::HEIGHT;
 SELECT extension ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike' ELSE 'Steady' END ::CATEGORY, 'Spike:warn; Steady:neutral'::COLORS,
        1::FLIP, '/d/extension?v.extension={x}'::LINK,
@@ -144,7 +149,7 @@ SELECT extension AS "Extension" ::TABLE,
        'Latest capture against the mean of the 4 weeks with data before it, largest absolute change first; extensions with at least 1,000 downloads on one side. "Spike – watch": this week is more than 5x the extension''s recent median, so read the jump as likely CI or bot traffic until it holds.'::INFO
 FROM m
 ORDER BY abs(downloads - before4) DESC, extension
-LIMIT 8;
+LIMIT 7;
 
 SELECT 5::COL;
 SELECT 'none'::TOOLBAR;
@@ -162,4 +167,4 @@ WHERE first_seen > getvariable('full_list_from')
   AND first_seen >= (SELECT week_start FROM weeks WHERE wi = (SELECT max(wi) - 7 FROM weeks))
 GROUP BY extension, first_seen
 ORDER BY first_seen DESC, "Downloads since" DESC, extension
-LIMIT 8;
+LIMIT 7;

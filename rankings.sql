@@ -15,6 +15,7 @@
 -- same, copied.
 
 SELECT 'en-GB'::LOCALE;
+SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';

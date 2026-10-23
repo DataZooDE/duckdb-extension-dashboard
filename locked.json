@@ -1,6 +1,12 @@
 {
   "home": "overview",
-  "path_vars": ["extension"],
+  "app": {
+    "name": "DuckDB Extension Dashboard",
+    "tagline": "Weekly installs of DuckDB community extensions"
+  },
+  "path_vars": [
+    "extension"
+  ],
   "max_rows": 100000,
   "timeout_ms": 30000,
   "threads": 4,

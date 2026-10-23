@@ -15,6 +15,7 @@
 -- the setup views below are the same, copied.
 
 SELECT 'en-GB'::LOCALE;
+SELECT 'DuckDB Extension Dashboard'::BRAND;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
@@ -95,7 +96,7 @@ SELECT 1::ENDGROUP;
 -- Weekly downloads, raw and 4-week median, with the "No data" gaps of the
 -- whole series shaded (each band hangs on the extension's last listed week
 -- before the gap) and a tick strip of this extension's spikes under it.
-SELECT 8::COL; SELECT 200::HEIGHT;
+SELECT 8::COL; SELECT 190::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 WITH span AS (
   SELECT range::DATE AS week_start
@@ -146,7 +147,7 @@ FROM ext_weeks c LEFT JOIN p USING (extension), me
 WHERE c.week_start = getvariable('last_ws') AND c.rnk BETWEEN me.rnk - 3 AND me.rnk + 3
 ORDER BY c.rnk, c.extension;
 
-SELECT 6::COL; SELECT 150::HEIGHT;
+SELECT 6::COL; SELECT 135::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 SELECT week_start ::XAXIS, rnk ::LINECHART, 'reverse'::YSCALE,
        'Rank of ' || getvariable('sel') || ' by week (1 = most downloaded)' ::TITLE,
@@ -154,7 +155,7 @@ SELECT week_start ::XAXIS, rnk ::LINECHART, 'reverse'::YSCALE,
 FROM ext_weeks WHERE extension = getvariable('sel')
 ORDER BY week_start;
 
-SELECT 6::COL; SELECT 150::HEIGHT;
+SELECT 6::COL; SELECT 135::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 SELECT week_start ::XAXIS, round(100.0 * downloads / total, 3) ::LINECHART, 'percent'::YFORMAT,
        'Share of all downloads, ' || getvariable('sel') ::TITLE,

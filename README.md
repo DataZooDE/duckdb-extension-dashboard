@@ -1,4 +1,6 @@
-# extension-downloads
+# DuckDB Extension Dashboard
+
+Blueprint directory: `extension-downloads/`.
 
 Dashboards over DuckDB's public
 [community-extension download metrics](https://duckdb.org/community_extensions/download_metrics):
