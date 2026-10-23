@@ -127,8 +127,12 @@ meta = {
     "provisional_weeks": m["provisional_weeks"],
     "dropped_files": m["dropped_files"],
 }
-with open(out, "w") as f:
+with open(out + ".tmp", "w") as f:
     json.dump(meta, f, indent=2)
     f.write("\n")
 PY
+# Publish by rename: a locked server serving this root reads a renamed-in
+# file fresh (an in-place overwrite can be read with a cached footer).
+mv "$OUT/.downloads.parquet.tmp" "$OUT/downloads.parquet"
+mv "$OUT/meta.json.tmp" "$OUT/meta.json"
 echo "wrote $OUT/downloads.parquet and $OUT/meta.json"

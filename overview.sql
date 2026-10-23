@@ -78,7 +78,7 @@ SELECT 1::ENDGROUP;
 -- The total, with gaps as gaps: a "No data" band over each run of missing
 -- weeks (hung on the data row right before it). The line itself still
 -- joins across a gap -- NULL rows don't break it, the renderer drops them.
-SELECT 8::COL; SELECT 215::HEIGHT;
+SELECT 8::COL; SELECT 188::HEIGHT;
 WITH span AS (
   SELECT range::DATE AS week_start
   FROM range((SELECT min(week_start) FROM weeks), getvariable('last_ws') + INTERVAL 1 DAY, INTERVAL 7 DAY)),
@@ -108,7 +108,7 @@ SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
 FROM long l LEFT JOIN gaps g ON g.gap_from = l.week_start + 7
 ORDER BY l.week_start, l.series;
 
-SELECT 4::COL; SELECT 226::HEIGHT;
+SELECT 4::COL; SELECT 197::HEIGHT;
 SELECT extension ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike' ELSE 'Steady' END ::CATEGORY, 'Spike:warn; Steady:neutral'::COLORS,
        1::FLIP, '/d/extension?v.extension={x}'::LINK,
@@ -136,7 +136,7 @@ m AS (
 SELECT extension AS "Extension" ::TABLE,
        downloads AS "Last week",
        round(before4)::BIGINT AS "Mean of 4 weeks before",
-       round(downloads - before4)::BIGINT AS "Change" ::TREND,
+       round(downloads - before4)::BIGINT AS "Change" ::COLORSCALE_DIVERGING,
        CASE WHEN before4 > 0 THEN round(100 * (downloads / before4 - 1)) END AS "Change %" ::PERCENT,
        CASE WHEN spike THEN 'Spike – watch' ELSE 'Steady' END AS "Pattern" ::BADGE,
        '/d/extension?v.extension={Extension}' AS "Details" ::LINK,

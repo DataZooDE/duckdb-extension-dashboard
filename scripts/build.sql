@@ -60,7 +60,7 @@ FROM ranked r, unnest(json_keys(r.json)) t(k)
 WHERE r.rn = 1 AND k <> '_last_update';
 
 COPY (SELECT * FROM downloads ORDER BY week_start, extension)
-TO (getvariable('out') || '/downloads.parquet') (FORMAT parquet, COMPRESSION zstd);
+TO (getvariable('out') || '/.downloads.parquet.tmp') (FORMAT parquet, COMPRESSION zstd);
 
 CREATE TEMP TABLE meta AS
 WITH kept AS (SELECT DISTINCT year, week, week_start, last_update, provisional FROM downloads),

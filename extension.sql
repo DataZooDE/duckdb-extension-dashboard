@@ -138,7 +138,7 @@ p AS (SELECT extension, rnk FROM ext_weeks WHERE week_start = getvariable('prev_
 SELECT c.rnk AS "Rank" ::TABLE,
        CASE WHEN c.extension = getvariable('sel') THEN '▶ ' || c.extension ELSE c.extension END AS "Extension",
        c.downloads AS "Last week",
-       p.rnk - c.rnk AS "Places" ::TREND,
+       p.rnk - c.rnk AS "Places" ::COLORSCALE_DIVERGING,
        '?v.extension=' || c.extension AS "Open" ::LINK,
        'Neighbours in the ranking, 7 days to ' || getvariable('last_label') ::TITLE,
        'Places: previous week''s rank minus this week''s (positive = moved up; empty = not listed the week before).'::INFO
