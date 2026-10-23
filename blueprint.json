@@ -8,7 +8,8 @@
     {"file": "overview.sql", "question": "Is the extension ecosystem growing, and what's hot?"},
     {"file": "extension.sql", "question": "How is one extension doing?"},
     {"file": "rankings.sql", "question": "Where does every extension stand?"},
-    {"file": "contributors.sql", "question": "Who builds the ecosystem?"}
+    {"file": "contributors.sql", "question": "Who builds the ecosystem?"},
+    {"file": "contributor.sql", "question": "How is one contributor doing versus the whole ecosystem?"}
   ],
   "input": {
     "kind": "data root: downloads.parquet (one row per ISO week and extension: year, week, week_start, extension, downloads, last_update, provisional) and meta.json, both written by scripts/fetch.sh from DuckDB's public download metrics",
@@ -18,6 +19,7 @@
     "variables": {
       "anofox_data": "the data root",
       "extension": "the extension shown on extension.sql (dropdown, ?v.extension=<name>; a path variable on the locked server)",
+      "contributor": "contributor.sql: the contributor shown (dropdown, ?v.contributor=<name>, links from contributors.sql; default DataZooDE). Not a path variable: a contributor or group name need not be a plain name",
       "highlight": "rankings.sql: rows whose name contains this text are flagged and summed (text input, default anofox)"
     }
   },
