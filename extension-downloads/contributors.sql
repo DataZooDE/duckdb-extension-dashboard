@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, downloads, contributors
 -- @description Every contributor (the GitHub owner of an extension's repo) ranked by last week's downloads, the top 15, and the top 8's share over time.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.23 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.24 (blueprint.json)
 --
 -- A contributor is the GitHub org or user that owns an extension's repo
 -- (extensions.parquet's `owner`, from repo.github in the extension's
@@ -87,6 +87,7 @@ FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws') ORDE
 SELECT 1::ENDGROUP;
 
 SELECT 'Top contributors'::TAB;
+SELECT 'fit'::FIT;
 
 -- Top 15, twice: raw, and spike-corrected (downloads_corrected from the
 -- fetch step's scripts/spikes.sql: Hampel filter, real level shifts kept via
@@ -132,6 +133,7 @@ FROM s
 ORDER BY week_start, CASE WHEN who = 'Others' THEN 1 ELSE 0 END, who;
 
 SELECT 'All contributors'::TAB;
+SELECT 'fit'::FIT;
 
 -- Every contributor: the latest week against the mean of the 4 weeks with
 -- data before it.

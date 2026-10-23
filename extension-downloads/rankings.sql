@@ -6,7 +6,7 @@
 -- @description Every extension ranked by last week's downloads, with its contributor, trend and spike flag; filter to one contributor.
 -- @vars contributor
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.23 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.24 (blueprint.json)
 --
 -- `contributor` (the dropdown, ?v.contributor=<name>; default "(all)", every
 -- contributor) narrows the table and the KPI row to one contributor's
@@ -15,6 +15,9 @@
 -- and groups.csv: see contributors.sql's header. Definitions (week, provisional, gap, "not listed", spike, 4-week
 -- median): see overview.sql's header -- the setup views below are the
 -- same, copied.
+
+-- Fit to screen (anofox-visualization v2026.10.24): no page scroll at any window size.
+SELECT 'fit'::FIT;
 
 SELECT 'en-GB'::LOCALE;
 

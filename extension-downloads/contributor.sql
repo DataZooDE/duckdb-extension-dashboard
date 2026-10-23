@@ -6,7 +6,7 @@
 -- @description One contributor's downloads, share, rank, extensions and growth, against every community extension together.
 -- @vars contributor
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.23 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.24 (blueprint.json)
 --
 -- `contributor` (the dropdown, ?v.contributor=<name>, or a link from
 -- contributors.sql) picks the contributor; unset, the page shows
@@ -26,6 +26,9 @@
 -- downloads after it. Linear axis: a young contributor's index runs into
 -- the thousands while the ecosystem's stays in the hundreds, but the
 -- pinned renderer's log ticks read 316.23 / 3,162.28 (anofox-visualization#413).
+
+-- Fit to screen (anofox-visualization v2026.10.24): no page scroll at any window size.
+SELECT 'fit'::FIT;
 
 SELECT 'en-GB'::LOCALE;
 

@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, downloads, growth
 -- @description Weekly installs of DuckDB community extensions: the total, last week's top 20, the biggest movers and the newcomers.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.23 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.24 (blueprint.json)
 --
 -- Home dashboard (locked.json's "home"). Reads one file,
 -- <anofox_data>/downloads.parquet, written by scripts/fetch.sh (one row per
@@ -29,6 +29,9 @@
 --     Typical cause: CI or bot traffic (stochastic 19.9k -> 201k in one
 --     week). The robust view is the 4-week median (this and the previous 3
 --     listed weeks), shown next to the raw counts.
+
+-- Fit to screen (anofox-visualization v2026.10.24): no page scroll at any window size.
+SELECT 'fit'::FIT;
 
 SELECT 'en-GB'::LOCALE;
 

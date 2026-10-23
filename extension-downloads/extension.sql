@@ -6,7 +6,7 @@
 -- @description One extension's weekly installs with spikes marked, its rank and share over time, and its neighbours in the ranking.
 -- @vars extension
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.23 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.24 (blueprint.json)
 --
 -- `extension` (the dropdown, ?v.extension=<name>, or a link from the other
 -- dashboards; a path variable in locked.json) picks the extension; with no
@@ -14,6 +14,9 @@
 -- below), the dropdown's first option. Definitions (week, provisional,
 -- gap, "not listed", spike, 4-week median): see overview.sql's header --
 -- the setup views below are the same, copied.
+
+-- Fit to screen (anofox-visualization v2026.10.24): no page scroll at any window size.
+SELECT 'fit'::FIT;
 
 SELECT 'en-GB'::LOCALE;
 

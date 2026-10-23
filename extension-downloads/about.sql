@@ -5,13 +5,16 @@
 -- @tags duckdb, community extensions, about, data source
 -- @description The author, where the data comes from and how it flows into these pages, and how current the loaded snapshot is.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.23 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.24 (blueprint.json)
 --
 -- The author card is static text. Everything else is read from the data
 -- root itself (meta.json written by scripts/fetch.sh, downloads.parquet,
 -- extensions.parquet, duckdb_releases.parquet), so the freshness strip, the
 -- pipeline's counts and the snapshot table always describe the snapshot
 -- being served.
+
+SELECT 'About'::TAB;
+SELECT 'fit'::FIT;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
@@ -90,6 +93,7 @@ SELECT '### Read with care
 - One-off **spikes** (likely CI or bot traffic) are flagged, and a **spike-corrected** count sits next to the raw one; lasting level shifts are kept.'::MARKDOWN,
        'warning'::CALLOUT;
 
+SELECT 'Snapshot details'::TAB;
 -- The snapshot's details, straight from meta.json.
 SELECT 12::COL;
 SELECT 'none'::TOTALS;
