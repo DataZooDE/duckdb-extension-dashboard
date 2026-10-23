@@ -88,7 +88,7 @@ SELECT 1::ENDGROUP;
 -- are ::XLINEs on the week they fell in (ISO Monday), labelled only for
 -- x.y.0. All lines hang on the 4-week-median rows (the renderer reads the
 -- ::XLINE column of one series); it skips labels that would overlap.
-SELECT 6::COL; SELECT 182::HEIGHT;
+SELECT 6::COL; SELECT 215::HEIGHT;
 WITH span AS (
   SELECT range::DATE AS week_start
   FROM range((SELECT min(week_start) FROM weeks), getvariable('last_ws') + INTERVAL 1 DAY, INTERVAL 7 DAY)),
@@ -115,7 +115,6 @@ SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
        CASE WHEN l.series = 'Weekly downloads' THEN g.gap_from END ::XBAND_FROM,
        CASE WHEN l.series = 'Weekly downloads' THEN g.gap_to END ::XBAND_TO,
        CASE WHEN l.week_start < getvariable('full_list_from') THEN l.week_start END ::MARKAREA,
-       CASE WHEN l.provisional AND l.week_start = getvariable('last_ws') THEN 'provisional' END ::ANNOTATE,
        CASE WHEN l.series = '4-week median' AND l.week_start = getvariable('full_list_from') THEN l.week_start
             WHEN l.series = '4-week median' THEN r.week_start END ::XLINE,
        CASE WHEN l.series = '4-week median' AND l.week_start = getvariable('full_list_from') THEN 'full list'
@@ -129,7 +128,7 @@ ORDER BY l.week_start, l.series;
 -- How many extensions: listed in the week's capture (with downloads), and
 -- listed in total so far (cumulative, by first week seen). The jump at
 -- 2025-11-10 is the site starting to list every extension, not growth.
-SELECT 3::COL; SELECT 190::HEIGHT;
+SELECT 3::COL; SELECT 215::HEIGHT;
 WITH per AS (
   SELECT week_start, count(*) AS listed FROM ext_weeks GROUP BY week_start),
 firsts AS (
@@ -149,14 +148,14 @@ SELECT week_start ::XAXIS, series ::CATEGORY, v ::LINECHART,
        'With downloads: extensions in that week''s capture. Listed in total: every extension seen so far (cumulative by first week). Before 2025-11-10 the site listed only about the top 50, so the jump there is coverage, not growth.'::INFO
 FROM long ORDER BY week_start, series;
 
-SELECT 3::COL; SELECT 190::HEIGHT;
+SELECT 3::COL; SELECT 215::HEIGHT;
 SELECT extension ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike' ELSE 'Steady' END ::CATEGORY, 'Spike:warn; Steady:neutral'::COLORS,
        1::FLIP, '/d/extension?v.extension={x}'::LINK,
-       'Top 20, 7 days to ' || getvariable('last_label') ::TITLE,
+       'Top 15, 7 days to ' || getvariable('last_label') ::TITLE,
        'Spike: more than 5x the median of the extension''s previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads). Click a bar to open the extension.'::INFO
 FROM (SELECT * FROM ext_weeks WHERE week_start = getvariable('last_ws')
-      ORDER BY downloads DESC, extension LIMIT 20)
+      ORDER BY downloads DESC, extension LIMIT 15)
 -- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
 ORDER BY downloads ASC, extension DESC;
 
@@ -187,7 +186,7 @@ SELECT extension AS "Extension" ::TABLE,
        'Latest capture against the mean of the 4 weeks with data before it, largest absolute change first; extensions with at least 1,000 downloads on one side. "Spike – watch": this week is more than 5x the extension''s recent median, so read the jump as likely CI or bot traffic until it holds.'::INFO
 FROM m
 ORDER BY abs(downloads - before4) DESC, extension
-LIMIT 7;
+LIMIT 6;
 
 SELECT 5::COL;
 SELECT 'none'::TOOLBAR;
@@ -205,4 +204,4 @@ WHERE first_seen > getvariable('full_list_from')
   AND first_seen >= (SELECT week_start FROM weeks WHERE wi = (SELECT max(wi) - 7 FROM weeks))
 GROUP BY extension, first_seen
 ORDER BY first_seen DESC, "Downloads since" DESC, extension
-LIMIT 7;
+LIMIT 6;

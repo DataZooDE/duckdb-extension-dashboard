@@ -1,70 +1,108 @@
-# DuckDB Extension Dashboard
+<div align="center">
 
-How DuckDB's community extensions are used: weekly downloads, rankings,
-contributors, spikes and DuckDB releases, published at
-**https://datazoode.github.io/duckdb-extension-dashboard/** and refreshed
-daily by a GitHub Action.
+# 🦆 DuckDB Extension Dashboard
 
-Built only with [anofox-visualization](https://github.com/DataZooDE/anofox-visualization):
-every page is one SQL file in [`extension-downloads/`](extension-downloads/).
-The spike correction uses [anofox-forecast](https://github.com/DataZooDE/anofox-forecast)'s
-changepoint detection. Made by Simon Müller at [DataZoo](https://github.com/DataZooDE).
+**How the DuckDB community-extension ecosystem is actually used: downloads, rankings, contributors, spikes and releases, every week.**
 
-## Pages
+[![Live dashboard](https://img.shields.io/badge/▶_live-datazoode.github.io-2563eb?style=for-the-badge)](https://datazoode.github.io/duckdb-extension-dashboard/)
 
-| Page | Question | SQL |
+[![update](https://github.com/DataZooDE/duckdb-extension-dashboard/actions/workflows/update.yml/badge.svg)](https://github.com/DataZooDE/duckdb-extension-dashboard/actions/workflows/update.yml)
+[![ci](https://github.com/DataZooDE/duckdb-extension-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/DataZooDE/duckdb-extension-dashboard/actions/workflows/ci.yml)
+[![built with anofox-visualization](https://img.shields.io/badge/built_with-anofox--visualization-0a0a0a)](https://github.com/DataZooDE/anofox-visualization)
+[![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+<a href="https://datazoode.github.io/duckdb-extension-dashboard/"><img src="docs/overview.png" alt="The Overview: weekly downloads of all DuckDB community extensions with DuckDB releases marked, the number of extensions over time, the top 15, the biggest movers and the newcomers" width="100%"></a>
+
+</div>
+
+## What you get
+
+- 📈 **The whole ecosystem at a glance:** about 3 million installs a week across more than 370 extensions, with every DuckDB release marked on the timeline.
+- 🔎 **Any extension in depth:** weekly downloads, rank over time, share of all installs, and its neighbours in the ranking. Pick one from the dropdown, live in your browser.
+- 🏗️ **Who builds DuckDB's extensions:** more than 200 contributors, ranked, with the top 15 shown raw and spike-corrected side by side.
+- 🧹 **Honest numbers:** one-off spikes (CI or bot traffic) are flagged and corrected with a Hampel filter. Real growth is kept, confirmed by [anofox-forecast](https://github.com/DataZooDE/anofox-forecast)'s changepoint detection. Missing weeks show as gaps, never as zeros.
+- 🔄 **Always current:** a GitHub Action fetches the data daily, checks every dashboard, and republishes.
+
+<table>
+<tr>
+<td width="50%"><a href="https://datazoode.github.io/duckdb-extension-dashboard/extension.html?v.extension=anofox_forecast"><img src="docs/extension.png" alt="One extension: weekly downloads with DuckDB releases and spikes, rank and share over time"></a><br><sub><b>Extension</b>: one extension, live, picked from a dropdown</sub></td>
+<td width="50%"><a href="https://datazoode.github.io/duckdb-extension-dashboard/contributors.html"><img src="docs/contributors.png" alt="Contributors: top 15 raw and spike-corrected, share over time"></a><br><sub><b>Contributors</b>: who builds the ecosystem, raw vs spike-corrected</sub></td>
+</tr>
+</table>
+
+## The pages
+
+| Page | Question it answers | SQL |
 |---|---|---|
-| Overview | Is the ecosystem growing, and what's hot? | [`overview.sql`](extension-downloads/overview.sql) |
-| Extensions | How is one extension doing? (one page per extension) | [`extension.sql`](extension-downloads/extension.sql) |
-| Rankings | Where does every extension stand? | [`rankings.sql`](extension-downloads/rankings.sql) |
-| Contributors | Who builds the ecosystem? | [`contributors.sql`](extension-downloads/contributors.sql) |
-| By contributor | How is one contributor doing vs the ecosystem? (one page per contributor) | [`contributor.sql`](extension-downloads/contributor.sql) |
-| About | Who made this, and how current is the data? | [`about.sql`](extension-downloads/about.sql) |
+| [Overview](https://datazoode.github.io/duckdb-extension-dashboard/) | Is the ecosystem growing, and what's hot? | [`overview.sql`](extension-downloads/overview.sql) |
+| [Extension](https://datazoode.github.io/duckdb-extension-dashboard/extension.html) | How is one extension doing? | [`extension.sql`](extension-downloads/extension.sql) |
+| [Rankings](https://datazoode.github.io/duckdb-extension-dashboard/rankings.html) | Where does every extension stand? | [`rankings.sql`](extension-downloads/rankings.sql) |
+| [Contributors](https://datazoode.github.io/duckdb-extension-dashboard/contributors.html) | Who builds the ecosystem? | [`contributors.sql`](extension-downloads/contributors.sql) |
+| [Contributor](https://datazoode.github.io/duckdb-extension-dashboard/contributor.html) | How is one contributor doing vs everyone else? | [`contributor.sql`](extension-downloads/contributor.sql) |
+| [About](https://datazoode.github.io/duckdb-extension-dashboard/about.html) | Who made this, and how current is the data? | [`about.sql`](extension-downloads/about.sql) |
 
-## Data
+Every page is **one plain SQL file**. Charts, KPIs, tables and pickers are SQL
+columns with a role (`downloads::LINECHART`, `'Top 15'::TITLE`, …), rendered by
+[anofox-visualization](https://github.com/DataZooDE/anofox-visualization).
 
-- **Downloads:** DuckDB's [community extension download metrics](https://duckdb.org/community_extensions/download_metrics),
-  Cloudflare's estimate of `INSTALL` downloads per extension and week.
-- **Extensions and contributors:** each extension's `description.yml` in
-  [duckdb/community-extensions](https://github.com/duckdb/community-extensions);
-  the contributor is the GitHub owner of the extension's repository.
-- **DuckDB releases:** [duckdb/duckdb releases](https://github.com/duckdb/duckdb/releases).
+## How it works
 
-The snapshot is committed in [`extension-downloads/demo/`](extension-downloads/demo/)
-(provenance and caveats in its [PROVENANCE.md](extension-downloads/demo/PROVENANCE.md)),
-so its git history is the history of the data. The site's `data/` folder serves
-the same parquet files for download.
-
-## How it updates
-
-[`update.yml`](.github/workflows/update.yml) runs daily at 06:30 UTC (and on
-demand):
-
-1. **Fetch:** `extension-downloads/scripts/fetch.sh` downloads the metrics,
-   extension metadata and releases, and adds the spike correction.
-2. **Check:** every dashboard passes `dashboard --check --strict` and a
-   locked-server smoke test on the fresh data.
-3. **Commit:** the snapshot is committed if it changed.
-4. **Publish:** the static site is built and deployed to GitHub Pages.
-
-A failing step stops the run, so the site keeps the last good data.
-
-## Run it locally
-
-```sh
-scripts/fetch-tools.sh --blueprint extension-downloads   # pinned anofox-visualization CLI + extension
-extension-downloads/scripts/ci.sh                         # snapshot -> data/, strict check, smoke
-scripts/serve-locked.sh --blueprint extension-downloads --port 8828   # live, with pickers: http://127.0.0.1:8828/
-python3 site-tools/build-site.py --data extension-downloads/data --out site \
-  --dashboard "$(find .cache/tools -name dashboard -type f | head -1)"  # the static site, as published
+```mermaid
+flowchart LR
+  A["duckdb.org<br/>weekly download JSON"] --> F
+  B["duckdb/community-extensions<br/>description.yml"] --> F
+  C["duckdb/duckdb<br/>releases"] --> F
+  F["fetch.sh<br/>+ spike correction<br/>(anofox-forecast)"] --> S[("parquet snapshot<br/>committed daily")]
+  S --> K{"strict check<br/>+ smoke test"}
+  K --> P["GitHub Pages:<br/>anofox-visualization app<br/>(DuckDB-Wasm, pinned)"]
+  P --> U(("your browser:<br/>SQL runs locally"))
 ```
 
-The live server has working pickers. The static site renders one page per
-extension and contributor instead, because static HTML has no live inputs.
-`site-tools/duckdb` works around anofox-visualization#414 (the static render
-drops TEMP views and the data root); it can go once that's fixed.
+There's no server: the site ships anofox-visualization's in-browser app, built
+from the pinned release, next to the parquet snapshot. Your browser runs each
+dashboard's SQL in DuckDB-Wasm, so the pickers re-query instantly.
+[`update.yml`](.github/workflows/update.yml) runs daily at 06:30 UTC:
 
-## Licence
+1. **Fetch:** download the metrics, extension metadata and releases, and add the spike correction.
+2. **Check:** every dashboard passes `dashboard --check --strict` and a locked-server smoke test on the fresh data.
+3. **Commit:** the snapshot is committed if it changed, so the git log doubles as the data's history.
+4. **Publish:** build the app from the pinned tag and deploy the site.
 
-Code: MIT ([LICENSE](LICENSE)). Data: DuckDB's public download metrics and the
-community-extensions repository, see [PROVENANCE.md](extension-downloads/demo/PROVENANCE.md).
+Any failure stops the run before anything is published, so the live site keeps the last good data.
+
+## The data
+
+| | Source | Note |
+|---|---|---|
+| Downloads | [DuckDB's download metrics](https://duckdb.org/community_extensions/download_metrics) | Cloudflare's estimate of `INSTALL` downloads, all platforms and versions together, per week |
+| Extensions and contributors | [duckdb/community-extensions](https://github.com/duckdb/community-extensions) | contributor = the GitHub owner of the extension's repository |
+| DuckDB releases | [duckdb/duckdb](https://github.com/duckdb/duckdb/releases) | prereleases excluded |
+
+Things to keep in mind:
+- Until **2025-11-10** the site listed only about the top 50 extensions.
+- The latest week is often a mid-week capture.
+
+Details and caveats: [PROVENANCE.md](extension-downloads/demo/PROVENANCE.md).
+Download the snapshot: [`data/`](https://datazoode.github.io/duckdb-extension-dashboard/data/meta.json).
+
+## Run it yourself
+
+```sh
+scripts/fetch-tools.sh --blueprint extension-downloads    # pinned anofox-visualization CLI + DuckDB extension
+extension-downloads/scripts/ci.sh                          # snapshot -> data/, strict check, smoke test
+scripts/serve-locked.sh --blueprint extension-downloads --port 8828   # a locked server: http://127.0.0.1:8828/
+extension-downloads/scripts/fetch.sh --out extension-downloads/demo   # refresh the data from the live sources
+```
+
+The published site is built by [`site-tools/build-site.py`](site-tools/build-site.py)
+from anofox-visualization's web app (`wasm-pack`, see the workflow) plus the dashboards and the data.
+
+## Made by
+
+**Simon Müller** at [DataZoo](https://github.com/DataZooDE), the makers of the
+anofox DuckDB extensions: [anofox-forecast](https://github.com/DataZooDE/anofox-forecast),
+[anofox-statistics](https://github.com/DataZooDE/anofox-statistics) and
+[anofox-visualization](https://github.com/DataZooDE/anofox-visualization).
+
+Code: MIT ([LICENSE](LICENSE)). Data: DuckDB's public download metrics and
+the community-extensions repository, see [PROVENANCE.md](extension-downloads/demo/PROVENANCE.md).

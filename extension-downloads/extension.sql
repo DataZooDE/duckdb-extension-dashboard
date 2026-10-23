@@ -57,10 +57,14 @@ FROM read_parquet(getvariable('f_extensions')) e LEFT JOIN user_groups g USING (
 SET VARIABLE last_ws = (SELECT max(week_start) FROM weeks);
 SET VARIABLE prev_ws = (SELECT max(week_start) FROM weeks WHERE week_start < getvariable('last_ws'));
 SET VARIABLE last_label = (SELECT strftime(last_update, '%-d %b') FROM weeks WHERE week_start = getvariable('last_ws'));
-SET VARIABLE sel = coalesce(nullif(getvariable('extension'), ''),
+-- Input-derived values are views, not SET VARIABLEs: a view reads the
+-- viewer's pick at query time, while a SET VARIABLE is evaluated once with
+-- whatever the input held when the setup ran (in the browser app that is
+-- the previous pick).
+CREATE OR REPLACE TEMP VIEW sel_v AS SELECT coalesce(nullif(getvariable('extension'), ''),
                             (SELECT extension FROM ext_weeks WHERE week_start = getvariable('last_ws')
-                             ORDER BY downloads DESC, extension LIMIT 1));
-SET VARIABLE sel_contributor = coalesce((SELECT contributor FROM ext_owner WHERE extension = getvariable('sel')), '(unlisted)');
+                             ORDER BY downloads DESC, extension LIMIT 1)) AS sel;
+CREATE OR REPLACE TEMP VIEW sel_contributor_v AS SELECT coalesce((SELECT contributor FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)), '(unlisted)') AS sel_contributor;
 
 -- Every extension ever listed, the latest week's ranking first (so the
 -- default, the first option, is the top extension); the label carries the
@@ -82,12 +86,12 @@ SELECT c.downloads ::METRIC,
        'Downloads, 7 days to ' || getvariable('last_label')
          || coalesce(' (' || printf('%+.0f', 100.0 * c.downloads / p.downloads - 100) || '% vs prior week)', '') ::LABEL
 FROM (SELECT 1) one
-LEFT JOIN ext_weeks c ON c.extension = getvariable('sel') AND c.week_start = getvariable('last_ws')
-LEFT JOIN ext_weeks p ON p.extension = getvariable('sel') AND p.week_start = getvariable('prev_ws');
+LEFT JOIN ext_weeks c ON c.extension = (SELECT sel FROM sel_v) AND c.week_start = getvariable('last_ws')
+LEFT JOIN ext_weeks p ON p.extension = (SELECT sel FROM sel_v) AND p.week_start = getvariable('prev_ws');
 SELECT c.rnk ::METRIC,
        'Rank of ' || (SELECT listed FROM weeks WHERE week_start = getvariable('last_ws')) || ' listed' ::LABEL
 FROM (SELECT 1) one
-LEFT JOIN ext_weeks c ON c.extension = getvariable('sel') AND c.week_start = getvariable('last_ws');
+LEFT JOIN ext_weeks c ON c.extension = (SELECT sel FROM sel_v) AND c.week_start = getvariable('last_ws');
 SELECT p.rnk - c.rnk ::METRIC,
        CASE WHEN c.rnk IS NULL THEN 'Rank change (not listed last week)'
             WHEN p.rnk IS NULL THEN 'Rank change (new: not listed the week before)'
@@ -97,16 +101,16 @@ SELECT p.rnk - c.rnk ::METRIC,
        '<0:bad; =0:neutral; good'::THRESHOLDS,
        'Previous week''s rank minus this week''s: positive = moved up.'::INFO
 FROM (SELECT 1) one
-LEFT JOIN ext_weeks c ON c.extension = getvariable('sel') AND c.week_start = getvariable('last_ws')
-LEFT JOIN ext_weeks p ON p.extension = getvariable('sel') AND p.week_start = getvariable('prev_ws');
+LEFT JOIN ext_weeks c ON c.extension = (SELECT sel FROM sel_v) AND c.week_start = getvariable('last_ws')
+LEFT JOIN ext_weeks p ON p.extension = (SELECT sel FROM sel_v) AND p.week_start = getvariable('prev_ws');
 SELECT round(100.0 * c.downloads / c.total, 2) ::PERCENT, 'Share of all downloads'::LABEL
 FROM (SELECT 1) one
-LEFT JOIN ext_weeks c ON c.extension = getvariable('sel') AND c.week_start = getvariable('last_ws');
+LEFT JOIN ext_weeks c ON c.extension = (SELECT sel FROM sel_v) AND c.week_start = getvariable('last_ws');
 SELECT count(e.week_start) ::METRIC,
        'Weeks listed (of ' || (SELECT count(*) FROM weeks) || '), first ' || coalesce(strftime(min(e.week_start), '%b %Y'), '—') ::LABEL,
        'Weekly captures that list this extension. Before 2025-11-10 the site listed only about the top 50 extensions, so an earlier "first" is the first week in that top list.'::INFO
 FROM (SELECT 1) one
-LEFT JOIN ext_weeks e ON e.extension = getvariable('sel');
+LEFT JOIN ext_weeks e ON e.extension = (SELECT sel FROM sel_v);
 SELECT 1::ENDGROUP;
 
 -- Weekly downloads, raw and 4-week median, with the "No data" gaps of the
@@ -122,7 +126,7 @@ gaps AS (
   FROM (SELECT week_start, week_start - 7 * row_number() OVER (ORDER BY week_start)::INTEGER AS island
         FROM span s WHERE NOT EXISTS (SELECT 1 FROM weeks w WHERE w.week_start = s.week_start))
   GROUP BY island),
-e AS (SELECT * FROM ext_weeks WHERE extension = getvariable('sel')),
+e AS (SELECT * FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v)),
 long AS (
   SELECT week_start, 'Weekly downloads' AS series, downloads::DOUBLE AS v FROM e
   UNION ALL
@@ -150,7 +154,7 @@ SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
             WHEN l.series = '4-week median' THEN r.week_start END ::XLINE,
        CASE WHEN l.series = '4-week median' AND l.week_start = fs.week_start THEN fs.label
             WHEN l.series = '4-week median' THEN r.label END ::XLINE_LABEL,
-       'Weekly downloads of ' || getvariable('sel') || ' (by ' || getvariable('sel_contributor') || '), raw and 4-week median' ::TITLE,
+       'Weekly downloads of ' || (SELECT sel FROM sel_v) || ' (by ' || (SELECT sel_contributor FROM sel_contributor_v) || '), raw and 4-week median' ::TITLE,
        'INSTALL downloads per weekly capture; shaded weeks have no data (a gap, not a zero). Dashed lines: the first listed week ("listed since" when that is the first published week or the 2025-11-10 listing change) and DuckDB releases, labelled for x.y.0, and a week the extension is not listed in has no point. The 4-week median (this and its previous 3 listed weeks) ignores one-week spikes; the strip below ticks each spike (more than 5x the median of its previous 8 listed weeks, at least 4 of them, and at least 1,000 downloads).'::INFO
 FROM long l
 LEFT JOIN (SELECT g.*, (SELECT max(e.week_start) FROM e WHERE e.week_start < g.gap_from) AS host FROM gaps g) g
@@ -161,9 +165,9 @@ ORDER BY l.week_start, l.series;
 SELECT week_start ::XAXIS, 'Spikes'::TRACK,
        'Spike, week of ' || strftime(week_start, '%-d %b %Y') || ': ' || format('{:,}', downloads)
          || ' vs a median of ' || format('{:,}', round(base8)::BIGINT) || ' over the previous ' || n8 || ' listed weeks' ::LABEL
-FROM ext_weeks WHERE extension = getvariable('sel') AND spike
+FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v) AND spike
 UNION ALL
-SELECT NULL, 'Spikes', 'No spike' WHERE NOT EXISTS (SELECT 1 FROM ext_weeks WHERE extension = getvariable('sel') AND spike)
+SELECT NULL, 'Spikes', 'No spike' WHERE NOT EXISTS (SELECT 1 FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v) AND spike)
 ORDER BY 1;
 
 -- The neighbours: 3 places either side in the latest week's ranking.
@@ -171,10 +175,10 @@ SELECT 4::COL;
 SELECT 'none'::TOOLBAR;
 SELECT 'none'::TOTALS;
 SELECT 'This extension is not listed in the latest week.'::EMPTY;
-WITH me AS (SELECT rnk FROM ext_weeks WHERE extension = getvariable('sel') AND week_start = getvariable('last_ws')),
+WITH me AS (SELECT rnk FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v) AND week_start = getvariable('last_ws')),
 p AS (SELECT extension, rnk FROM ext_weeks WHERE week_start = getvariable('prev_ws'))
 SELECT c.rnk AS "Rank" ::TABLE,
-       CASE WHEN c.extension = getvariable('sel') THEN '▶ ' || c.extension ELSE c.extension END AS "Extension",
+       CASE WHEN c.extension = (SELECT sel FROM sel_v) THEN '▶ ' || c.extension ELSE c.extension END AS "Extension",
        CASE WHEN o.contributor = 'DataZooDE' THEN '★ DataZooDE' ELSE coalesce(o.contributor, '(unlisted)') END AS "Contributor",
        c.downloads AS "Last week",
        p.rnk - c.rnk AS "Places" ::COLORSCALE_DIVERGING,
@@ -187,15 +191,15 @@ ORDER BY c.rnk, c.extension;
 SELECT 6::COL; SELECT 135::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 SELECT week_start ::XAXIS, rnk ::LINECHART, 'reverse'::YSCALE,
-       'Rank of ' || getvariable('sel') || ' by week (1 = most downloaded)' ::TITLE,
+       'Rank of ' || (SELECT sel FROM sel_v) || ' by week (1 = most downloaded)' ::TITLE,
        'Rank among the extensions listed that week, by downloads (ties share a rank). Before 2025-11-10 the site listed only about the top 50, so ranks there are within that top list.'::INFO
-FROM ext_weeks WHERE extension = getvariable('sel')
+FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v)
 ORDER BY week_start;
 
 SELECT 6::COL; SELECT 135::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 SELECT week_start ::XAXIS, round(100.0 * downloads / total, 3) ::LINECHART, 'percent'::YFORMAT,
-       'Share of all downloads, ' || getvariable('sel') ::TITLE,
+       'Share of all downloads, ' || (SELECT sel FROM sel_v) ::TITLE,
        'This extension''s downloads as a percentage of every listed extension''s downloads in the same weekly capture. Before 2025-11-10 the total covers only about the top 50 extensions, which inflates every share there.'::INFO
-FROM ext_weeks WHERE extension = getvariable('sel')
+FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v)
 ORDER BY week_start;

@@ -44,7 +44,11 @@ FROM (SELECT d.extension, d.week_start, d.downloads, w.wi, w.total,
 SET VARIABLE last_ws = (SELECT max(week_start) FROM weeks);
 SET VARIABLE prev_ws = (SELECT max(week_start) FROM weeks WHERE week_start < getvariable('last_ws'));
 SET VARIABLE last_label = (SELECT strftime(last_update, '%-d %b') FROM weeks WHERE week_start = getvariable('last_ws'));
-SET VARIABLE flt = coalesce(nullif(getvariable('contributor'), ''), '(all)');
+-- Input-derived values are views, not SET VARIABLEs: a view reads the
+-- viewer's pick at query time, while a SET VARIABLE is evaluated once with
+-- whatever the input held when the setup ran (in the browser app that is
+-- the previous pick).
+CREATE OR REPLACE TEMP VIEW flt_v AS SELECT coalesce(nullif(getvariable('contributor'), ''), '(all)') AS flt;
 
 CREATE OR REPLACE TEMP VIEW user_groups AS
 SELECT trim(split_part(l, ',', 1), ' "') AS extension, any_value(trim(split_part(l, ',', 2), ' "')) AS grp
@@ -74,16 +78,16 @@ SELECT ''::GROUP;
 SELECT count(*) ::METRIC,
        'Extensions (' || count(x.extension) || ' downloaded last week)' ::LABEL
 FROM ext_owner o LEFT JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
-WHERE (getvariable('flt') = '(all)' OR o.contributor = getvariable('flt')) AND o.extension IN (SELECT extension FROM ext_weeks);
+WHERE ((SELECT flt FROM flt_v) = '(all)' OR o.contributor = (SELECT flt FROM flt_v)) AND o.extension IN (SELECT extension FROM ext_weeks);
 SELECT sum(x.downloads) ::METRIC, 'Their downloads, 7 days to ' || getvariable('last_label') ::LABEL
 FROM ext_owner o JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
-WHERE getvariable('flt') = '(all)' OR o.contributor = getvariable('flt');
+WHERE (SELECT flt FROM flt_v) = '(all)' OR o.contributor = (SELECT flt FROM flt_v);
 SELECT round(100.0 * sum(x.downloads) / any_value(x.total), 2) ::PERCENT, 'Their share of all downloads'::LABEL
 FROM ext_owner o JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
-WHERE getvariable('flt') = '(all)' OR o.contributor = getvariable('flt');
+WHERE (SELECT flt FROM flt_v) = '(all)' OR o.contributor = (SELECT flt FROM flt_v);
 SELECT min(x.rnk) ::METRIC, 'Best rank among all extensions'::LABEL
 FROM ext_owner o JOIN ext_weeks x ON x.extension = o.extension AND x.week_start = getvariable('last_ws')
-WHERE getvariable('flt') = '(all)' OR o.contributor = getvariable('flt');
+WHERE (SELECT flt FROM flt_v) = '(all)' OR o.contributor = (SELECT flt FROM flt_v);
 SELECT 1::ENDGROUP;
 
 -- One row per extension ever listed: the latest week's ranking first, then
@@ -108,7 +112,7 @@ SELECT c.rnk AS "Rank" ::PAGED,
             ELSE strftime(e.first_seen, '%Y-%m-%d') END AS "First seen",
        CASE WHEN c.spike THEN 'Spike – watch' WHEN c.extension IS NULL THEN 'Not listed' ELSE 'Steady' END AS "Pattern" ::BADGE,
        '/d/extension?v.extension={Extension}' AS "Details" ::LINK,
-       CASE WHEN getvariable('flt') = '(all)' THEN 'Every extension' ELSE 'Extensions of ' || getvariable('flt') END
+       CASE WHEN (SELECT flt FROM flt_v) = '(all)' THEN 'Every extension' ELSE 'Extensions of ' || (SELECT flt FROM flt_v) END
          || ', ranked by downloads, 7 days to ' || getvariable('last_label') ::TITLE,
        'Rank: among all extensions, whatever the filter. Contributor: the GitHub owner of the extension''s repo ("(unlisted)": no longer in the community-extensions repo; ★ marks DataZooDE). Places: previous week''s rank minus this week''s (positive = moved up). 4-week median: this and the previous 3 listed weeks, robust to one-week spikes. Last 13 weeks: the listed weeks among the last 13 with data. First seen: "by" a date in or before 2025-11-10, when the site still listed only about the top 50 extensions (the extension may be older). Spike – watch: more than 5x the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads).'::INFO
 FROM everyone e
@@ -116,5 +120,5 @@ LEFT JOIN cur c USING (extension)
 LEFT JOIN prev p USING (extension)
 LEFT JOIN spark s USING (extension)
 LEFT JOIN ext_owner o USING (extension)
-WHERE getvariable('flt') = '(all)' OR o.contributor = getvariable('flt')
+WHERE (SELECT flt FROM flt_v) = '(all)' OR o.contributor = (SELECT flt FROM flt_v)
 ORDER BY c.rnk NULLS LAST, e.extension;

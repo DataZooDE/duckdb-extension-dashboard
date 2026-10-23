@@ -42,7 +42,7 @@ SELECT 1::ENDGROUP;
 
 -- How the data flows: sources -> batch step -> files -> the locked server ->
 -- these pages, each box with what it holds in this snapshot.
-SELECT 12::COL; SELECT 110::HEIGHT;
+SELECT 12::COL; SELECT 104::HEIGHT;
 WITH n(seq, id, label, val, kind) AS (
   SELECT 1, 'stats', 'Cloudflare download stats (weekly JSON)', (SELECT count(DISTINCT week_start) FROM read_parquet(getvariable('f_downloads'))), 'Source'
   UNION ALL SELECT 2, 'repo', 'duckdb/community-extensions (description.yml)', (SELECT count(*) FROM read_parquet(getvariable('f_extensions'))), 'Source'
@@ -104,8 +104,6 @@ FROM (
          array_to_string(list_transform(m.provisional_weeks, lambda x: x.week || ' (' || strftime(x.last_update::TIMESTAMP, '%Y-%m-%d') || ')'), ', ') FROM m
   UNION ALL
   SELECT 3, 'community-extensions commit', m.sources.extensions_commit FROM m
-  UNION ALL
-  SELECT 4, 'Latest DuckDB release in the data',
-         (SELECT versions || ' (' || published || ')' FROM read_parquet(getvariable('f_releases')) ORDER BY published DESC LIMIT 1)
+
 )
 ORDER BY seq;
