@@ -6,9 +6,16 @@
 #   <out>/downloads.parquet  one row per (ISO week, extension): year, week,
 #                            week_start (ISO Monday), extension, downloads,
 #                            last_update, provisional
-#   <out>/meta.json          fetched_at, the source URLs, the weeks covered,
-#                            the weeks missing, and every file the build
-#                            dropped or relabelled (and why)
+#   <out>/extensions.parquet one row per extension (in the download data or
+#                            in the community-extensions repo): description,
+#                            language, license, version, repo, owner (the
+#                            contributor: the GitHub org/user of repo.github;
+#                            "(unlisted)" when the repo no longer lists it),
+#                            maintainers, in_repo
+#   <out>/meta.json          fetched_at, the source URLs and commit, the weeks
+#                            covered, the weeks missing, the unlisted
+#                            extensions, and every file the build dropped or
+#                            relabelled (and why)
 #
 #   extension-downloads/scripts/fetch.sh [--out DIR] [--raw DIR] [--from-raw DIR]
 #
@@ -31,6 +38,11 @@
 # land on the same ISO week the later `_last_update` wins (the earlier one
 # was a mid-week capture the site later completed). See build.sql.
 #
+# Extension metadata: a shallow, sparse clone of duckdb/community-extensions
+# (only extensions/*/description.yml), parsed by parse-descriptions.py
+# (needs PyYAML) into <raw>/extensions.jsonl, so --from-raw needs neither
+# git nor Python's yaml.
+#
 # Environment: DUCKDB (a DuckDB CLI; default `duckdb` on PATH).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -43,7 +55,7 @@ while [ $# -gt 0 ]; do
     --out) OUT="$2"; shift 2 ;;
     --raw) RAW="$2"; shift 2 ;;
     --from-raw) FROM_RAW="$2"; shift 2 ;;
-    *) sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    *) sed -n '2,46p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
   esac
 done
 DUCKDB="${DUCKDB:-duckdb}"
@@ -61,7 +73,7 @@ else
   [ -n "$RAW" ] || RAW="$TMP/raw"
   mkdir -p "$RAW"
   RAW="$(cd "$RAW" && pwd)"
-  rm -rf "${RAW:?}"/weekly "$RAW"/last-week.json "$RAW"/_fetched_at
+  rm -rf "${RAW:?}"/weekly "$RAW"/last-week.json "$RAW"/_fetched_at "$RAW"/community-extensions "$RAW"/extensions.jsonl "$RAW"/_extensions_commit
   mkdir -p "$RAW/weekly"
   date -u +%Y-%m-%dT%H:%M:%SZ >"$RAW/_fetched_at"
   # One "<year> <week as written in the path>" per line.
@@ -89,7 +101,13 @@ else
   fi
   curl -fsS --retry 3 --retry-delay 2 -o "$RAW/last-week.json" "$BASE/downloads-last-week.json"
   echo "fetched $(ls "$RAW/weekly" | wc -l) weekly files + downloads-last-week.json into $RAW"
+  command -v git >/dev/null || { echo "fetch.sh: git not found" >&2; exit 1; }
+  git clone -q --depth 1 --filter=blob:none --sparse https://github.com/duckdb/community-extensions.git "$RAW/community-extensions"
+  git -C "$RAW/community-extensions" sparse-checkout set --no-cone '/extensions/*/description.yml'
+  git -C "$RAW/community-extensions" rev-parse HEAD >"$RAW/_extensions_commit"
+  python3 "$HERE/parse-descriptions.py" "$RAW/community-extensions" "$RAW/extensions.jsonl"
 fi
+[ -f "$RAW/extensions.jsonl" ] || { echo "fetch.sh: $RAW has no extensions.jsonl (fetched before the metadata step: fetch again)" >&2; exit 1; }
 
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
@@ -104,11 +122,11 @@ q() { printf "'%s'" "${1//\'/\'\'}"; }
   echo "SELECT * FROM meta;"
 } >"$TMP/build.sql"
 "$DUCKDB" -batch -bail :memory: <"$TMP/build.sql"
-python3 - "$TMP/meta.rows" "$OUT/meta.json" "$FETCHED_AT" "$BASE" <<'PY'
+python3 - "$TMP/meta.rows" "$OUT/meta.json" "$FETCHED_AT" "$BASE" "$(cat "$RAW/_extensions_commit")" <<'PY'
 import json, sys
-rows, out, fetched_at, base = sys.argv[1:]
+rows, out, fetched_at, base, commit = sys.argv[1:]
 m = json.load(open(rows))[0]
-for k in ("missing_weeks", "provisional_weeks", "dropped_files"):
+for k in ("missing_weeks", "provisional_weeks", "dropped_files", "unlisted_extensions"):
     m[k] = json.loads(m[k]) if isinstance(m[k], str) else m[k]
 meta = {
     "fetched_at": fetched_at,
@@ -116,6 +134,8 @@ meta = {
         "page": "https://duckdb.org/community_extensions/download_metrics",
         "last_week": f"{base}/downloads-last-week.json",
         "weekly": f"{base}/download-stats-weekly/{{YEAR}}/{{WEEK}}.json",
+        "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
+        "extensions_commit": commit,
     },
     "what": "Cloudflare's estimate of INSTALL downloads per community extension, all platforms and versions together, per week.",
     "first_week": m["first_week"],
@@ -126,6 +146,9 @@ meta = {
     "missing_weeks": m["missing_weeks"],
     "provisional_weeks": m["provisional_weeks"],
     "dropped_files": m["dropped_files"],
+    "extensions_in_repo": m["extensions_in_repo"],
+    "contributors": m["contributors"],
+    "unlisted_extensions": m["unlisted_extensions"],
 }
 with open(out + ".tmp", "w") as f:
     json.dump(meta, f, indent=2)
@@ -134,5 +157,6 @@ PY
 # Publish by rename: a locked server serving this root reads a renamed-in
 # file fresh (an in-place overwrite can be read with a cached footer).
 mv "$OUT/.downloads.parquet.tmp" "$OUT/downloads.parquet"
+mv "$OUT/.extensions.parquet.tmp" "$OUT/extensions.parquet"
 mv "$OUT/meta.json.tmp" "$OUT/meta.json"
-echo "wrote $OUT/downloads.parquet and $OUT/meta.json"
+echo "wrote $OUT/downloads.parquet, $OUT/extensions.parquet and $OUT/meta.json"

@@ -16,10 +16,10 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 BP="$(cd "$HERE/.." && pwd)"
 ROOT="${1:-$BP/data}"
 DEMO="$BP/demo"
-for f in downloads.parquet meta.json; do
+for f in downloads.parquet extensions.parquet meta.json; do
   [ -f "$DEMO/$f" ] || { echo "copy-demo.sh: no $DEMO/$f (run scripts/fetch.sh --out $DEMO)" >&2; exit 1; }
 done
 mkdir -p "$ROOT"
 ROOT="$(cd "$ROOT" && pwd)"
-cp "$DEMO/downloads.parquet" "$DEMO/meta.json" "$ROOT/"
+cp -f "$DEMO/downloads.parquet" "$DEMO/extensions.parquet" "$DEMO/meta.json" "$ROOT/"
 echo "demo snapshot ($(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print(m["first_week"], "to", m["last_week"], "fetched", m["fetched_at"])' "$DEMO/meta.json")) copied into $ROOT"

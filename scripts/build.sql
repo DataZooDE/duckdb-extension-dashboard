@@ -62,6 +62,28 @@ WHERE r.rn = 1 AND k <> '_last_update';
 COPY (SELECT * FROM downloads ORDER BY week_start, extension)
 TO (getvariable('out') || '/.downloads.parquet.tmp') (FORMAT parquet, COMPRESSION zstd);
 
+-- Extension metadata (parse-descriptions.py's JSON lines), one row per
+-- extension in the download data or the repo. Contributor = owner, the
+-- GitHub org/user of repo.github; an extension the repo no longer lists
+-- (moved to core, removed) is "(unlisted)".
+CREATE TEMP TABLE ext_meta AS
+SELECT * FROM read_json(getvariable('raw') || '/extensions.jsonl', format = 'newline_delimited',
+                        columns = {extension: 'VARCHAR', dir: 'VARCHAR', description: 'VARCHAR', language: 'VARCHAR',
+                                   license: 'VARCHAR', version: 'VARCHAR', repo: 'VARCHAR', owner: 'VARCHAR',
+                                   maintainers: 'VARCHAR[]'})
+QUALIFY row_number() OVER (PARTITION BY extension ORDER BY dir = extension DESC, dir) = 1;
+
+CREATE TEMP TABLE extensions AS
+SELECT n.extension, m.description, m.language, m.license, m.version, m.repo,
+       coalesce(m.owner, '(unlisted)') AS owner,
+       coalesce(m.maintainers, []::VARCHAR[]) AS maintainers,
+       m.extension IS NOT NULL AS in_repo
+FROM (SELECT DISTINCT extension FROM downloads UNION SELECT extension FROM ext_meta) n
+LEFT JOIN ext_meta m USING (extension);
+
+COPY (SELECT * FROM extensions ORDER BY extension)
+TO (getvariable('out') || '/.extensions.parquet.tmp') (FORMAT parquet, COMPRESSION zstd);
+
 CREATE TEMP TABLE meta AS
 WITH kept AS (SELECT DISTINCT year, week, week_start, last_update, provisional FROM downloads),
 iso AS (SELECT printf('%d-W%02d', year, week) AS w, * FROM kept),
@@ -88,4 +110,7 @@ SELECT (SELECT min(w) FROM iso) AS first_week,
                 FROM iso WHERE provisional))::VARCHAR AS provisional_weeks,
        to_json((SELECT coalesce(list({'path': path, 'last_update': strftime(last_update, '%Y-%m-%dT%H:%M:%SZ'),
                                       'iso_week': iso_week, 'reason': reason} ORDER BY path), [])
-                FROM dropped))::VARCHAR AS dropped_files;
+                FROM dropped))::VARCHAR AS dropped_files,
+       (SELECT count(*) FROM ext_meta) AS extensions_in_repo,
+       (SELECT count(DISTINCT owner) FROM extensions WHERE in_repo) AS contributors,
+       to_json((SELECT coalesce(list(extension ORDER BY extension), []) FROM extensions WHERE NOT in_repo))::VARCHAR AS unlisted_extensions;
