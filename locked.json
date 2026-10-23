@@ -1,0 +1,10 @@
+{
+  "home": "overview",
+  "path_vars": ["extension"],
+  "max_rows": 100000,
+  "timeout_ms": 30000,
+  "threads": 4,
+  "max_queries": 4,
+  "cache_mb": 128,
+  "memory_limit": "2GB"
+}
