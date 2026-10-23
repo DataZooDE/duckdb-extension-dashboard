@@ -81,45 +81,75 @@ SELECT downloads ::METRIC,
 FROM ext_weeks WHERE week_start = getvariable('last_ws') ORDER BY downloads DESC, extension LIMIT 1;
 SELECT 1::ENDGROUP;
 
--- The total, with gaps as gaps. Missing weeks get a NULL row each (the
--- line joins across them) and are shaded by a ::MARKAREA, which draws in
--- its own shade; the "top 50 only" period before the full listing is a
--- labelled ::XBAND (the theme's muted shade). DuckDB releases are ::XLINEs
--- on the week they fell in (ISO Monday), labelled only for x.y.0 -- the
--- renderer skips labels that would overlap, so keep them few and short.
-SELECT 8::COL; SELECT 182::HEIGHT;
+-- The total, with gaps as gaps: each run of missing weeks is an unlabelled
+-- ::XBAND (hung on the data row right before it; the line joins across);
+-- the "top ~50 listed only" period before the full listing is a ::MARKAREA
+-- (its own, darker shade) ending at the "full list" line. DuckDB releases
+-- are ::XLINEs on the week they fell in (ISO Monday), labelled only for
+-- x.y.0. All lines hang on the 4-week-median rows (the renderer reads the
+-- ::XLINE column of one series); it skips labels that would overlap.
+SELECT 6::COL; SELECT 182::HEIGHT;
 WITH span AS (
   SELECT range::DATE AS week_start
   FROM range((SELECT min(week_start) FROM weeks), getvariable('last_ws') + INTERVAL 1 DAY, INTERVAL 7 DAY)),
+gaps AS (
+  SELECT min(week_start) AS gap_from, max(week_start) + 7 AS gap_to
+  FROM (SELECT week_start, week_start - 7 * row_number() OVER (ORDER BY week_start)::INTEGER AS island
+        FROM span s WHERE NOT EXISTS (SELECT 1 FROM weeks w WHERE w.week_start = s.week_start))
+  GROUP BY island),
 series AS (
-  SELECT s.week_start, w.total::DOUBLE AS raw,
-         CASE WHEN w.week_start IS NOT NULL THEN
-           median(w.total) OVER (ORDER BY w.wi ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) END AS med4,
-         w.provisional, w.week_start IS NULL AS missing
-  FROM span s LEFT JOIN weeks w USING (week_start)),
+  SELECT week_start, total::DOUBLE AS raw,
+         median(total) OVER (ORDER BY wi ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) AS med4,
+         provisional
+  FROM weeks),
 long AS (
-  SELECT week_start, 'Weekly downloads' AS series, raw AS v, provisional, missing FROM series
+  SELECT week_start, 'Weekly downloads' AS series, raw AS v, provisional FROM series
   UNION ALL
-  SELECT week_start, '4-week median', med4, NULL, missing FROM series),
+  SELECT week_start, '4-week median', med4, NULL FROM series),
 rel AS (
   SELECT date_trunc('week', published)::DATE AS week_start,
          string_agg(replace(versions, 'v', ''), ' / ' ORDER BY published) FILTER (WHERE is_minor) AS label
   FROM read_parquet(getvariable('f_releases'))
   GROUP BY 1)
 SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
-       CASE WHEN l.missing THEN l.week_start END ::MARKAREA,
-       CASE WHEN l.series = 'Weekly downloads' AND l.week_start = (SELECT min(week_start) FROM span) THEN l.week_start END ::XBAND_FROM,
-       CASE WHEN l.series = 'Weekly downloads' AND l.week_start = (SELECT min(week_start) FROM span) THEN getvariable('full_list_from') END ::XBAND_TO,
-       CASE WHEN l.series = 'Weekly downloads' AND l.week_start = (SELECT min(week_start) FROM span) THEN 'top ~50 listed only' END ::XBAND_LABEL,
+       CASE WHEN l.series = 'Weekly downloads' THEN g.gap_from END ::XBAND_FROM,
+       CASE WHEN l.series = 'Weekly downloads' THEN g.gap_to END ::XBAND_TO,
+       CASE WHEN l.week_start < getvariable('full_list_from') THEN l.week_start END ::MARKAREA,
        CASE WHEN l.provisional AND l.week_start = getvariable('last_ws') THEN 'provisional' END ::ANNOTATE,
-       CASE WHEN l.series = '4-week median' THEN r.week_start END ::XLINE,
-       CASE WHEN l.series = '4-week median' THEN r.label END ::XLINE_LABEL,
+       CASE WHEN l.series = '4-week median' AND l.week_start = getvariable('full_list_from') THEN l.week_start
+            WHEN l.series = '4-week median' THEN r.week_start END ::XLINE,
+       CASE WHEN l.series = '4-week median' AND l.week_start = getvariable('full_list_from') THEN 'full list'
+            WHEN l.series = '4-week median' THEN r.label END ::XLINE_LABEL,
        'Overall downloads per week, all extensions (raw and 4-week median)'::TITLE,
-       'Sum over every listed extension per weekly capture. Darker shade: weeks without data (a gap, not a zero). Light band: before 2025-11-10 the site listed only about the top 50 extensions, so part of the step there is coverage, not growth. The 4-week median (this and the previous 3 weeks with data) ignores one-week spikes. Dashed lines: DuckDB releases (GitHub, non-prerelease), labelled for x.y.0.'::INFO
-FROM long l LEFT JOIN rel r ON r.week_start = l.week_start
+       'Sum over every listed extension per weekly capture. Light blue-grey bands: weeks without data (a gap, not a zero). Darker shade up to the "full list" line (2025-11-10): the site listed only about the top 50 extensions, so part of the step there is coverage, not growth. The 4-week median (this and the previous 3 weeks with data) ignores one-week spikes. Dashed lines: DuckDB releases (GitHub, non-prerelease), labelled for x.y.0.'::INFO
+FROM long l LEFT JOIN gaps g ON g.gap_from = l.week_start + 7
+LEFT JOIN rel r ON r.week_start = l.week_start
 ORDER BY l.week_start, l.series;
 
-SELECT 4::COL; SELECT 190::HEIGHT;
+-- How many extensions: listed in the week's capture (with downloads), and
+-- listed in total so far (cumulative, by first week seen). The jump at
+-- 2025-11-10 is the site starting to list every extension, not growth.
+SELECT 3::COL; SELECT 190::HEIGHT;
+WITH per AS (
+  SELECT week_start, count(*) AS listed FROM ext_weeks GROUP BY week_start),
+firsts AS (
+  SELECT first_seen AS week_start, count(DISTINCT extension) AS n_new FROM ext_weeks GROUP BY first_seen),
+cum AS (
+  SELECT p.week_start, p.listed,
+         sum(coalesce(f.n_new, 0)) OVER (ORDER BY p.week_start) AS total
+  FROM per p LEFT JOIN firsts f USING (week_start)),
+long AS (
+  SELECT week_start, 'With downloads' AS series, listed AS v FROM cum
+  UNION ALL
+  SELECT week_start, 'Listed in total', total FROM cum)
+SELECT week_start ::XAXIS, series ::CATEGORY, v ::LINECHART,
+       CASE WHEN series = 'With downloads' AND week_start = getvariable('full_list_from') THEN week_start END ::XLINE,
+       CASE WHEN series = 'With downloads' AND week_start = getvariable('full_list_from') THEN 'full list' END ::XLINE_LABEL,
+       'How many extensions?'::TITLE,
+       'With downloads: extensions in that week''s capture. Listed in total: every extension seen so far (cumulative by first week). Before 2025-11-10 the site listed only about the top 50, so the jump there is coverage, not growth.'::INFO
+FROM long ORDER BY week_start, series;
+
+SELECT 3::COL; SELECT 190::HEIGHT;
 SELECT extension ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike' ELSE 'Steady' END ::CATEGORY, 'Spike:warn; Steady:neutral'::COLORS,
        1::FLIP, '/d/extension?v.extension={x}'::LINK,
