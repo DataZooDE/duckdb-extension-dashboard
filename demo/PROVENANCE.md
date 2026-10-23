@@ -63,3 +63,14 @@ extension-downloads/scripts/fetch.sh --out extension-downloads/demo
 The build step is deterministic: the same downloaded files give byte-identical
 `downloads.parquet` and `meta.json` (`fetch.sh --raw DIR` keeps them,
 `fetch.sh --from-raw DIR` rebuilds from them offline).
+
+## Spike correction (`downloads_corrected`, `is_spike`, `spike_rule`)
+
+Computed by `scripts/spikes.sql` in the fetch step (the rule is in its header):
+- **Hampel filter**, per extension, over a centred window of 9 listed weeks. A week is a high outlier when it has at least 1,000 downloads and exceeds the window median by more than max(3 × 1.4826 × MAD, the median).
+- **Level shifts are kept**: when anofox-forecast's BOCPD changepoints (`ts_detect_changepoints_by`, hazard_lambda 50) mark the week, and the next 3 weeks stay above 2× the previous median, the jump is growth and stays uncorrected.
+- **Correction**: a spike is replaced by its window median.
+
+In this snapshot: 343 spike weeks (4.37 M raw downloads become 0.79 M corrected); 4 weeks are kept as level shifts.
+
+Cross-check: anofox-statistics' `aid_anomaly_by(..., {'outlier_method': 'iqr'})` also flags 310 of the 343 (90 %). It flags 579 weeks in total, because its IQR rule is global per series and so also flags the end of a growing series.

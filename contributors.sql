@@ -35,7 +35,7 @@ GROUP BY week_start;
 
 CREATE OR REPLACE TEMP VIEW ext_weeks AS
 SELECT *, coalesce(n8 >= 4 AND downloads >= 1000 AND downloads > 5 * base8, false) AS spike
-FROM (SELECT d.extension, d.week_start, d.downloads, w.wi, w.total,
+FROM (SELECT d.extension, d.week_start, d.downloads, d.downloads_corrected, d.is_spike, w.wi, w.total,
              rank() OVER (PARTITION BY d.week_start ORDER BY d.downloads DESC) AS rnk,
              median(d.downloads) OVER (PARTITION BY d.extension ORDER BY w.wi ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) AS med4,
              median(d.downloads) OVER prev8 AS base8,
@@ -62,7 +62,9 @@ FROM read_parquet(getvariable('f_extensions')) e LEFT JOIN user_groups g USING (
 CREATE OR REPLACE TEMP VIEW contrib_weeks AS
 SELECT c.contributor, w.week_start, w.wi, w.total,
        coalesce(sum(x.downloads), 0) AS downloads,
-       coalesce(bool_or(x.spike), false) AS spike
+       coalesce(sum(x.downloads_corrected), 0) AS downloads_corrected,
+       coalesce(bool_or(x.spike), false) AS spike,
+       coalesce(bool_or(x.is_spike), false) AS corrected_any
 FROM (SELECT DISTINCT contributor FROM ext_owner) c
 CROSS JOIN weeks w
 LEFT JOIN ext_owner o ON o.contributor = c.contributor
@@ -120,15 +122,28 @@ LEFT JOIN top t USING (contributor)
 LEFT JOIN info i USING (contributor)
 ORDER BY c.downloads DESC, c.contributor;
 
-SELECT 4::COL; SELECT 330::HEIGHT;
+-- Top 15, twice: raw, and spike-corrected (downloads_corrected from the
+-- fetch step's scripts/spikes.sql: Hampel filter, real level shifts kept via
+-- anofox-forecast changepoints).
+SELECT 2::COL; SELECT 330::HEIGHT;
 SELECT contributor ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike in an extension' ELSE 'Steady' END ::CATEGORY,
        'Spike in an extension:warn; Steady:neutral'::COLORS,
        1::FLIP, '/d/contributor?v.contributor={x}'::LINK,
-       'Top 15 contributors, 7 days to ' || getvariable('last_label') ::TITLE,
-       'Downloads of all of a contributor''s extensions together. Click a bar to open the contributor.'::INFO
+       'Top 15, raw' ::TITLE,
+       'Downloads of all of a contributor''s extensions together, 7 days to ' || getvariable('last_label') || '. Click a bar to open the contributor.'::INFO
 FROM contrib_weeks WHERE week_start = getvariable('last_ws')
 ORDER BY downloads DESC, contributor LIMIT 15;
+
+SELECT 2::COL; SELECT 330::HEIGHT;
+SELECT contributor ::XAXIS, downloads_corrected ::BARCHART_STACKED,
+       CASE WHEN corrected_any THEN 'Spike corrected' ELSE 'As measured' END ::CATEGORY,
+       'Spike corrected:warn; As measured:neutral'::COLORS,
+       1::FLIP, '/d/contributor?v.contributor={x}'::LINK,
+       'Top 15, spike-corrected' ::TITLE,
+       'Each extension''s spike weeks replaced by their 9-week window median: a Hampel filter (more than max(3 x 1.4826 x MAD, the median) above the median, at least 1,000 downloads), keeping real level shifts that anofox-forecast''s changepoint detection confirms over the next 3 weeks. anofox-statistics'' AID outlier flags agree on 90 % of these spikes. A last-week jump counts as a spike until it lasts.'::INFO
+FROM contrib_weeks WHERE week_start = getvariable('last_ws')
+ORDER BY downloads_corrected DESC, contributor LIMIT 15;
 
 -- Share over time: the 6 contributors with the most downloads over the last
 -- 13 weeks with data (steadier than one week), the rest as Others (7

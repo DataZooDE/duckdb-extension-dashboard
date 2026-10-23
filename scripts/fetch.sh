@@ -159,7 +159,10 @@ with open(out + ".tmp", "w") as f:
 PY
 # Publish by rename: a locked server serving this root reads a renamed-in
 # file fresh (an in-place overwrite can be read with a cached footer).
-mv "$OUT/.downloads.parquet.tmp" "$OUT/downloads.parquet"
+# spike correction (Hampel + anofox-forecast changepoints, scripts/spikes.sql)
+"$DUCKDB" -batch :memory: -c "SET VARIABLE f_in = '$OUT/.downloads.parquet.tmp'; SET VARIABLE f_out = '$OUT/.downloads.spikes.tmp';" -c ".read $HERE/spikes.sql"
+mv "$OUT/.downloads.spikes.tmp" "$OUT/downloads.parquet"
+rm -f "$OUT/.downloads.parquet.tmp"
 mv "$OUT/.extensions.parquet.tmp" "$OUT/extensions.parquet"
 mv "$OUT/meta.json.tmp" "$OUT/meta.json"
 # duckdb_releases.parquet: one row per release DAY (non-prereleases; same-day
