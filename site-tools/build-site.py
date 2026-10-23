@@ -87,6 +87,31 @@ LAUNCHER = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 """
 
 
+# Two small patches to our copy of the app's index.html (we host it only for
+# these view-only dashboards):
+#  - start in embed mode: the app adds `embed` to <body> from JavaScript, so
+#    the editor layout (sidebar, toolbar) flashes before it; set it upfront;
+#  - keep our own links in this tab: the app's Markdown links (our nav) open
+#    in a new tab (target=_blank); a link to this site opens in place.
+SAME_TAB = """<script>
+document.addEventListener("click", function (e) {
+  var a = e.target.closest && e.target.closest("a[href]");
+  if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+  var site = location.href.replace(/[?#].*$/, "").replace(/app\\/[^/]*$/, "");
+  if (a.href.indexOf(site) === 0) { e.preventDefault(); e.stopPropagation(); location.assign(a.href); }
+}, true);
+</script>"""
+
+
+def patch_app(index: Path) -> None:
+    s = index.read_text(encoding="utf-8")
+    s2 = s.replace('<body class="mode-view">', '<body class="mode-view embed">', 1)
+    if s2 == s:
+        raise SystemExit("build-site: app/index.html has no <body class=\"mode-view\"> (app changed? check the patch)")
+    s2 = s2.replace("</body>", SAME_TAB + "\n</body>", 1)
+    index.write_text(s2, encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--app", required=True, type=Path, help="anofox-visualization web/ after wasm-pack (web/pkg present)")
@@ -100,6 +125,7 @@ def main() -> int:
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(app, out / "app", ignore=shutil.ignore_patterns(".gitignore", "*.map"))
+    patch_app(out / "app" / "index.html")
     (out / "data").mkdir()
     for f in ["downloads.parquet", "extensions.parquet", "duckdb_releases.parquet", "meta.json"]:
         shutil.copy2(data / f, out / "data" / f)
