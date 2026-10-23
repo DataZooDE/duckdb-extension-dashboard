@@ -70,10 +70,10 @@ LAUNCHER = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} · {name}</title>
 <meta name="description" content="{desc}">
-<style>body{{font:15px system-ui,sans-serif;margin:40px;color:#444}}</style>
+<style>html,body{{margin:0;background:#f4f5f7}}@media (prefers-color-scheme:dark){{html,body{{background:#0f1115}}}}
+noscript p{{font:15px system-ui,sans-serif;margin:40px;color:#444}}</style>
 </head><body>
-<p>Opening <b>{title}</b>…</p>
-<noscript>This dashboard runs in your browser (DuckDB-Wasm) and needs JavaScript.</noscript>
+<noscript><p>This dashboard runs in your browser (DuckDB-Wasm) and needs JavaScript.</p></noscript>
 <script>
 (function () {{
   var sql = {sql};
