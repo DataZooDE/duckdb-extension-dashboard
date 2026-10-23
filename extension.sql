@@ -20,6 +20,7 @@ SELECT 'en-GB'::LOCALE;
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
+SET VARIABLE f_releases = getvariable('anofox_data') || '/duckdb_releases.parquet';
 
 CREATE OR REPLACE TEMP VIEW weeks AS
 SELECT week_start, any_value(year) AS year, any_value(week) AS week,
@@ -125,16 +126,37 @@ e AS (SELECT * FROM ext_weeks WHERE extension = getvariable('sel')),
 long AS (
   SELECT week_start, 'Weekly downloads' AS series, downloads::DOUBLE AS v FROM e
   UNION ALL
-  SELECT week_start, '4-week median', med4 FROM e)
+  SELECT week_start, '4-week median', med4 FROM e),
+-- First seen: the extension's first listed week. "listed since" when that is
+-- the first published week or the 2025-11-10 listing change, "in the top-50
+-- list since" before that change (the site then listed only ~50), else
+-- "first seen" (a real first appearance).
+fs AS (
+  SELECT min(week_start) AS week_start,
+         (CASE WHEN min(week_start) IN ((SELECT min(week_start) FROM weeks), getvariable('full_list_from'))
+               THEN 'listed since '
+               WHEN min(week_start) < getvariable('full_list_from') THEN 'in the top-50 list since '
+               ELSE 'first seen ' END) || strftime(min(week_start), '%-d %b %Y') AS label
+  FROM e),
+rel AS (
+  SELECT date_trunc('week', published)::DATE AS week_start,
+         string_agg(replace(versions, 'v', ''), ' / ' ORDER BY published) FILTER (WHERE is_minor) AS label
+  FROM read_parquet(getvariable('f_releases'))
+  GROUP BY 1)
 SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
        CASE WHEN l.series = 'Weekly downloads' THEN g.gap_from END ::XBAND_FROM,
        CASE WHEN l.series = 'Weekly downloads' THEN g.gap_to END ::XBAND_TO,
-       CASE WHEN l.series = 'Weekly downloads' AND g.gap_from IS NOT NULL THEN 'No data' END ::XBAND_LABEL,
+       CASE WHEN l.series = '4-week median' AND l.week_start = fs.week_start THEN fs.week_start
+            WHEN l.series = '4-week median' THEN r.week_start END ::XLINE,
+       CASE WHEN l.series = '4-week median' AND l.week_start = fs.week_start THEN fs.label
+            WHEN l.series = '4-week median' THEN r.label END ::XLINE_LABEL,
        'Weekly downloads of ' || getvariable('sel') || ' (by ' || getvariable('sel_contributor') || '), raw and 4-week median' ::TITLE,
-       'INSTALL downloads per weekly capture; shaded weeks have no data (a gap, not a zero), and a week the extension is not listed in has no point. The 4-week median (this and its previous 3 listed weeks) ignores one-week spikes; the strip below ticks each spike (more than 5x the median of its previous 8 listed weeks, at least 4 of them, and at least 1,000 downloads).'::INFO
+       'INSTALL downloads per weekly capture; shaded weeks have no data (a gap, not a zero). Dashed lines: the first listed week ("listed since" when that is the first published week or the 2025-11-10 listing change) and DuckDB releases, labelled for x.y.0, and a week the extension is not listed in has no point. The 4-week median (this and its previous 3 listed weeks) ignores one-week spikes; the strip below ticks each spike (more than 5x the median of its previous 8 listed weeks, at least 4 of them, and at least 1,000 downloads).'::INFO
 FROM long l
 LEFT JOIN (SELECT g.*, (SELECT max(e.week_start) FROM e WHERE e.week_start < g.gap_from) AS host FROM gaps g) g
   ON g.host = l.week_start
+CROSS JOIN fs
+LEFT JOIN rel r ON r.week_start = l.week_start
 ORDER BY l.week_start, l.series;
 SELECT week_start ::XAXIS, 'Spikes'::TRACK,
        'Spike, week of ' || strftime(week_start, '%-d %b %Y') || ': ' || format('{:,}', downloads)
