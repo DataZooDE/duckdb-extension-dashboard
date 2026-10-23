@@ -1,10 +1,10 @@
 <div align="center">
 
-# 🦆 DuckDB Extension Dashboard
+# DuckDB Extension Dashboard
 
 **How the DuckDB community-extension ecosystem is actually used: downloads, rankings, contributors, spikes and releases, every week.**
 
-[![Live dashboard](https://img.shields.io/badge/▶_live-datazoode.github.io-2563eb?style=for-the-badge)](https://datazoode.github.io/duckdb-extension-dashboard/)
+[![Live dashboard](https://img.shields.io/badge/live-datazoode.github.io-2563eb?style=for-the-badge)](https://datazoode.github.io/duckdb-extension-dashboard/)
 
 [![update](https://github.com/DataZooDE/duckdb-extension-dashboard/actions/workflows/update.yml/badge.svg)](https://github.com/DataZooDE/duckdb-extension-dashboard/actions/workflows/update.yml)
 [![ci](https://github.com/DataZooDE/duckdb-extension-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/DataZooDE/duckdb-extension-dashboard/actions/workflows/ci.yml)
@@ -17,11 +17,11 @@
 
 ## What you get
 
-- 📈 **The whole ecosystem at a glance:** about 3 million installs a week across more than 370 extensions, with every DuckDB release marked on the timeline.
-- 🔎 **Any extension in depth:** weekly downloads, rank over time, share of all installs, and its neighbours in the ranking. Pick one from the dropdown, live in your browser.
-- 🏗️ **Who builds DuckDB's extensions:** more than 200 contributors, ranked, with the top 15 shown raw and spike-corrected side by side.
-- 🧹 **Honest numbers:** one-off spikes (CI or bot traffic) are flagged and corrected with a Hampel filter. Real growth is kept, confirmed by [anofox-forecast](https://github.com/DataZooDE/anofox-forecast)'s changepoint detection. Missing weeks show as gaps, never as zeros.
-- 🔄 **Always current:** a GitHub Action fetches the data daily, checks every dashboard, and republishes.
+- **The whole ecosystem at a glance:** about 3 million installs a week across more than 370 extensions, with every DuckDB release marked on the timeline.
+- **Any extension in depth:** weekly downloads, rank over time, share of all installs, and its neighbours in the ranking. Pick one from the dropdown, live in your browser.
+- **Who builds DuckDB's extensions:** more than 200 contributors, ranked, with the top 15 shown raw and spike-corrected side by side.
+- **Honest numbers:** one-off spikes (CI or bot traffic) are flagged and corrected with a Hampel filter. Real growth is kept, confirmed by [anofox-forecast](https://github.com/DataZooDE/anofox-forecast)'s changepoint detection. Missing weeks show as gaps, never as zeros.
+- **Always current:** a GitHub Action fetches the data daily, checks every dashboard, and republishes.
 
 <table>
 <tr>
