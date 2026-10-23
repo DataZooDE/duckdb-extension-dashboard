@@ -71,7 +71,7 @@ SELECT '### Made by
 
 DataZoo builds the **anofox** DuckDB community extensions (`anofox_forecast`, `anofox_statistics`, …). This dashboard tracks them and the ecosystem around them.
 
-Built only with [anofox-visualization](https://github.com/DataZooDE/anofox-visualization): every page is one SQL file. The source is the `extension-downloads` blueprint in [anofox-blueprints](https://github.com/DataZooDE/anofox-blueprints).'::MARKDOWN,
+Built only with [anofox-visualization](https://github.com/DataZooDE/anofox-visualization): every page is one SQL file. Source, data history and the daily update: [DataZooDE/duckdb-extension-dashboard](https://github.com/DataZooDE/duckdb-extension-dashboard).'::MARKDOWN,
        'success'::CALLOUT;
 
 SELECT 4::COL;

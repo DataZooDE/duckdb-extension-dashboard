@@ -1,0 +1,7 @@
+.cache/
+site/
+extension-downloads/data/
+__pycache__/
+*.pyc
+*.duckdb
+*.duckdb.wal

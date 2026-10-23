@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# A `duckdb` wrapper for anofox-visualization's static render
+# (`dashboard page.sql out.html`, see anofox-visualization#414). The render
+# runs every statement as its own `duckdb <db-file> -c <sql>` call and
+# prepends the page's SET VARIABLEs to each panel query, but:
+#   - a CREATE TEMP VIEW dies with its call, so later panels can't see it
+#     -> this wrapper creates a plain view instead (it lives in the render's
+#        throw-away database file);
+#   - getvariable('anofox_data') is never set (the render has no --data)
+#     -> set from $ANOFOX_DATA before every statement, as the locked server
+#        does.
+# PRESET_SQL: extra statements before every statement (e.g. a picker's
+# SET VARIABLE extension = 'h3'; for a per-extension page).
+# REAL_DUCKDB: the real CLI (default: the next `duckdb` on PATH after this one).
+set -euo pipefail
+[ -n "${WRAP_LOG:-}" ] && printf '%s\n' "ARGS: $*" >> "$WRAP_LOG"
+real="${REAL_DUCKDB:-}"
+if [ -z "$real" ]; then
+  self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+  real="$(type -ap duckdb | while read -r p; do [ "$(cd "$(dirname "$p")" && pwd)/$(basename "$p")" != "$self" ] && { echo "$p"; break; }; done)"
+fi
+[ -n "$real" ] || { echo "site-tools/duckdb: no real duckdb on PATH (set REAL_DUCKDB)" >&2; exit 1; }
+args=("$@")
+for i in "${!args[@]}"; do
+  if [ "${args[$i]}" = "-c" ] && [ $((i + 1)) -lt ${#args[@]} ]; then
+    j=$((i + 1))
+    sql="$(printf '%s' "${args[$j]}" | sed -E 's/CREATE OR REPLACE TEMP(ORARY)? VIEW/CREATE OR REPLACE VIEW/gI; s/CREATE TEMP(ORARY)? VIEW/CREATE VIEW/gI')"
+    args[$j]="SET VARIABLE anofox_data = '${ANOFOX_DATA:?set ANOFOX_DATA to the data root}'; ${PRESET_SQL:-} $sql"
+  fi
+done
+exec "$real" "${args[@]}"

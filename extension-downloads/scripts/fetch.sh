@@ -108,6 +108,7 @@ else
   python3 "$HERE/parse-descriptions.py" "$RAW/community-extensions" "$RAW/extensions.jsonl"
   # DuckDB releases (the vertical lines on the weekly charts)
   curl -fsS --retry 3 --retry-delay 2 -o "$RAW/duckdb-releases.json" \
+    ${GH_TOKEN:+-H "Authorization: Bearer $GH_TOKEN"} \
     "https://api.github.com/repos/duckdb/duckdb/releases?per_page=100"
 fi
 [ -f "$RAW/extensions.jsonl" ] || { echo "fetch.sh: $RAW has no extensions.jsonl (fetched before the metadata step: fetch again)" >&2; exit 1; }

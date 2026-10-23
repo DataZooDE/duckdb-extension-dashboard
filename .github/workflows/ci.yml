@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore: ['extension-downloads/demo/**']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: DuckDB CLI (the version blueprint.json pins)
+        run: |
+          V="$(python3 -c 'import json; print(json.load(open("extension-downloads/blueprint.json"))["duckdb"])')"
+          mkdir -p "$HOME/bin"
+          curl -fsSL -o duckdb.zip "https://github.com/duckdb/duckdb/releases/download/$V/duckdb_cli-linux-amd64.zip"
+          unzip -q duckdb.zip -d "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: anofox-visualization tools (pinned release, checksums verified)
+        run: scripts/fetch-tools.sh --blueprint extension-downloads
+
+      - name: Dashboards on the committed snapshot (strict check, locked-server smoke)
+        run: extension-downloads/scripts/ci.sh
+
+      - name: The static site builds
+        run: |
+          python3 site-tools/build-site.py --data extension-downloads/data --out site \
+            --dashboard "$(find .cache/tools -name dashboard -type f | head -1)"
