@@ -30,9 +30,6 @@
 --     week). The robust view is the 4-week median (this and the previous 3
 --     listed weeks), shown next to the raw counts.
 
--- Fit to screen (anofox-visualization v2026.10.24): no page scroll at any window size.
-SELECT 'fit'::FIT;
-
 SELECT 'en-GB'::LOCALE;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';

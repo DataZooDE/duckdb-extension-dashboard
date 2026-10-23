@@ -13,8 +13,6 @@
 -- pipeline's counts and the snapshot table always describe the snapshot
 -- being served.
 
-SELECT 'About'::TAB;
-SELECT 'fit'::FIT;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
@@ -93,7 +91,6 @@ SELECT '### Read with care
 - One-off **spikes** (likely CI or bot traffic) are flagged, and a **spike-corrected** count sits next to the raw one; lasting level shifts are kept.'::MARKDOWN,
        'warning'::CALLOUT;
 
-SELECT 'Snapshot details'::TAB;
 -- The snapshot's details, straight from meta.json.
 SELECT 12::COL;
 SELECT 'none'::TOTALS;

@@ -87,7 +87,6 @@ FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws') ORDE
 SELECT 1::ENDGROUP;
 
 SELECT 'Top contributors'::TAB;
-SELECT 'fit'::FIT;
 
 -- Top 15, twice: raw, and spike-corrected (downloads_corrected from the
 -- fetch step's scripts/spikes.sql: Hampel filter, real level shifts kept via
@@ -133,7 +132,6 @@ FROM s
 ORDER BY week_start, CASE WHEN who = 'Others' THEN 1 ELSE 0 END, who;
 
 SELECT 'All contributors'::TAB;
-SELECT 'fit'::FIT;
 
 -- Every contributor: the latest week against the mean of the 4 weeks with
 -- data before it.

@@ -15,9 +15,6 @@
 -- gap, "not listed", spike, 4-week median): see overview.sql's header --
 -- the setup views below are the same, copied.
 
--- Fit to screen (anofox-visualization v2026.10.24): no page scroll at any window size.
-SELECT 'fit'::FIT;
-
 SELECT 'en-GB'::LOCALE;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
