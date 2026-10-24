@@ -15,7 +15,7 @@ dashboard's SQL gets
   - SET VARIABLE anofox_data = '<this site>/data', so the same SQL that runs
     on the locked server reads the published parquet files over HTTPS;
   - a one-line nav to the other launchers (the embed view has no nav);
-  - its /d/<id>?… drill-through links pointed at the launchers.
+  - its /d/<id>?… drill-through links pointed at the launchers (<id>.html?…).
 """
 import argparse
 import html
@@ -52,9 +52,10 @@ def pages() -> list:
 
 
 def site_sql(p: dict) -> str:
-    # drill-through links: /d/<id>?v.x={…} -> ../<id>.html?v.x={…}; the
-    # in-app router (SITE_JS) catches these and switches without a reload
-    return re.sub(r"'/d/([A-Za-z0-9_-]+)", r"'../\1.html", p["sql"])
+    # drill-through links: /d/<id>?v.x={…} -> <id>.html?v.x={…}, relative to
+    # the address bar, which the router (SITE_JS) keeps at <site>/<id>.html
+    # (not app/); it catches these and switches without a reload
+    return re.sub(r"'/d/([A-Za-z0-9_-]+)", r"'\1.html", p["sql"])
 
 
 LAUNCHER = """<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -138,7 +139,7 @@ SITE_JS = """<script>
     return true;
   }
   function route(href) {
-    var m = String(href).replace(site, "").match(/^(?:\\.\\.\\/)?([A-Za-z0-9_-]+)\\.html(\\?[^#]*)?$/);
+    var m = String(href).replace(site, "").match(/^(?:app\\/)?([A-Za-z0-9_-]+)\\.html(\\?[^#]*)?$/);
     return m && byId[m[1]] ? { id: m[1], qs: m[2] || "" } : null;
   }
   window.__siteFollow = function (u) {
