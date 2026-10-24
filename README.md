@@ -25,8 +25,8 @@
 
 <table>
 <tr>
-<td width="50%"><a href="https://datazoode.github.io/duckdb-extension-dashboard/extension.html?v.extension=anofox_forecast"><img src="docs/extension.png" alt="One extension: weekly downloads with DuckDB releases and spikes, rank and share over time"></a><br><sub><b>Extension</b>: one extension, live, picked from a dropdown</sub></td>
-<td width="50%"><a href="https://datazoode.github.io/duckdb-extension-dashboard/contributors.html"><img src="docs/contributors.png" alt="Contributors: top 15 raw and spike-corrected, share over time"></a><br><sub><b>Contributors</b>: who builds the ecosystem, raw vs spike-corrected</sub></td>
+<td width="50%"><a href="https://datazoode.github.io/duckdb-extension-dashboard/d/extension/?v.extension=anofox_forecast"><img src="docs/extension.png" alt="One extension: weekly downloads with DuckDB releases and spikes, rank and share over time"></a><br><sub><b>Extension</b>: one extension, live, picked from a dropdown</sub></td>
+<td width="50%"><a href="https://datazoode.github.io/duckdb-extension-dashboard/d/contributors/"><img src="docs/contributors.png" alt="Contributors: top 15 raw and spike-corrected, share over time"></a><br><sub><b>Contributors</b>: who builds the ecosystem, raw vs spike-corrected</sub></td>
 </tr>
 </table>
 
@@ -35,11 +35,11 @@
 | Page | Question it answers | SQL |
 |---|---|---|
 | [Overview](https://datazoode.github.io/duckdb-extension-dashboard/) | Is the ecosystem growing, and what's hot? | [`overview.sql`](extension-downloads/overview.sql) |
-| [Extension](https://datazoode.github.io/duckdb-extension-dashboard/extension.html) | How is one extension doing? | [`extension.sql`](extension-downloads/extension.sql) |
-| [Rankings](https://datazoode.github.io/duckdb-extension-dashboard/rankings.html) | Where does every extension stand? | [`rankings.sql`](extension-downloads/rankings.sql) |
-| [Contributors](https://datazoode.github.io/duckdb-extension-dashboard/contributors.html) | Who builds the ecosystem? | [`contributors.sql`](extension-downloads/contributors.sql) |
-| [Contributor](https://datazoode.github.io/duckdb-extension-dashboard/contributor.html) | How is one contributor doing vs everyone else? | [`contributor.sql`](extension-downloads/contributor.sql) |
-| [About](https://datazoode.github.io/duckdb-extension-dashboard/about.html) | Who made this, and how current is the data? | [`about.sql`](extension-downloads/about.sql) |
+| [Extension](https://datazoode.github.io/duckdb-extension-dashboard/d/extension/) | How is one extension doing? | [`extension.sql`](extension-downloads/extension.sql) |
+| [Rankings](https://datazoode.github.io/duckdb-extension-dashboard/d/rankings/) | Where does every extension stand? | [`rankings.sql`](extension-downloads/rankings.sql) |
+| [Contributors](https://datazoode.github.io/duckdb-extension-dashboard/d/contributors/) | Who builds the ecosystem? | [`contributors.sql`](extension-downloads/contributors.sql) |
+| [Contributor](https://datazoode.github.io/duckdb-extension-dashboard/d/contributor/) | How is one contributor doing vs everyone else? | [`contributor.sql`](extension-downloads/contributor.sql) |
+| [About](https://datazoode.github.io/duckdb-extension-dashboard/d/about/) | Who made this, and how current is the data? | [`about.sql`](extension-downloads/about.sql) |
 
 Every page is **one plain SQL file**. Charts, KPIs, tables and pickers are SQL
 columns with a role (`downloads::LINECHART`, `'Top 15'::TITLE`, …), rendered by
@@ -94,8 +94,14 @@ scripts/serve-locked.sh --blueprint extension-downloads --port 8828   # a locked
 extension-downloads/scripts/fetch.sh --out extension-downloads/demo   # refresh the data from the live sources
 ```
 
-The published site is built by [`site-tools/build-site.py`](site-tools/build-site.py)
-from anofox-visualization's web app (`wasm-pack`, see the workflow) plus the dashboards and the data.
+The published site is anofox-visualization's own `dashboard --site` output (the
+pinned release's prebuilt web app, the dashboards and the data), built by
+[`scripts/build-site.sh`](scripts/build-site.sh). To see exactly what will be
+published, under the same `/duckdb-extension-dashboard/` sub-path as GitHub Pages:
+
+```sh
+scripts/preview.sh    # build the site, serve http://127.0.0.1:8104/duckdb-extension-dashboard/
+```
 
 ## Made by
 

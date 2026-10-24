@@ -6,7 +6,7 @@
 -- @description One contributor's downloads, share, rank, extensions and growth, against every community extension together.
 -- @vars contributor
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.24 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.25 (blueprint.json)
 --
 -- `contributor` (the dropdown, ?v.contributor=<name>, or a link from
 -- contributors.sql) picks the contributor; unset, the page shows

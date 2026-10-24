@@ -110,7 +110,7 @@ build.sql's `k <> '_last_update'` filters (both of them) and in `n_ext`.
 ```sh
 scripts/fetch-tools.sh --blueprint extension-downloads
 extension-downloads/scripts/ci.sh            # copy-demo, check.sh (0 errors, 0 warnings), locked smoke on 8103
-python3 site-tools/build-site.py --data extension-downloads/data --out site --dashboard "$(find .cache/tools -name dashboard -type f | head -1)"
+scripts/build-site.sh                        # dashboard --site -> site/ (scripts/preview.sh serves it under /duckdb-extension-dashboard/)
 # build determinism, after any fetch.sh/build.sql change:
 extension-downloads/scripts/fetch.sh --from-raw <raw dir> --out /tmp/x && cmp /tmp/x/downloads.parquet extension-downloads/demo/downloads.parquet
 # a preview (restart it after every change; the server reads the .sql at start):

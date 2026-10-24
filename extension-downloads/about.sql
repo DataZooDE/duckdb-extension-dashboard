@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, about, data source
 -- @description The author, where the data comes from and how it flows into these pages, and how current the loaded snapshot is.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.24 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.25 (blueprint.json)
 --
 -- The author card is static text. Everything else is read from the data
 -- root itself (meta.json written by scripts/fetch.sh, downloads.parquet,

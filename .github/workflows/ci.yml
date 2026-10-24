@@ -29,26 +29,5 @@ jobs:
       - name: Dashboards on the committed snapshot (strict check, locked-server smoke)
         run: extension-downloads/scripts/ci.sh
 
-      - name: anofox-visualization web app source (the pinned tag)
-        run: |
-          V="$(python3 -c 'import json; print(json.load(open("extension-downloads/blueprint.json"))["anofox_visualization"])')"
-          git clone -q --depth 1 --branch "$V" https://github.com/DataZooDE/anofox-visualization.git .cache/avz
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: .cache/avz
-
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-pack
-
-      - name: Build the app (DuckDB-Wasm + anofox-visualization wasm, as upstream's Pages build does)
-        working-directory: .cache/avz
-        run: wasm-pack build --target web --out-dir web/pkg --profile wasm --no-default-features --features wasm
-
-      - name: Build the site (the app, our dashboards, the data)
-        run: python3 site-tools/build-site.py --app .cache/avz/web --data extension-downloads/data --out site
+      - name: Build the site (dashboard --site of the pinned release: the app, our dashboards, the data)
+        run: scripts/build-site.sh

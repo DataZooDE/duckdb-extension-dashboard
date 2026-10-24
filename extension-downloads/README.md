@@ -86,7 +86,7 @@ Every `.sql` file carries the same pin as a plain comment right after its
 header block. To bump it: edit `blueprint.json`, update the pin comment in
 every `.sql` file, `scripts/fetch-tools.sh --blueprint extension-downloads`,
 and re-run `extension-downloads/scripts/ci.sh` and the site build
-(`python3 site-tools/build-site.py`, see the repo README).
+(`scripts/build-site.sh`, or `scripts/preview.sh` to look at it).
 
 ## Run it
 

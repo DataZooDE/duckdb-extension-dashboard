@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Download a blueprint's pinned anofox-visualization release tools into
-# .cache/tools/<version>/: the `dashboard` and `serve` CLIs and the native
-# DuckDB extension (for the locked server). Checksums are verified against
+# .cache/tools/<version>/: the `dashboard` and `serve` CLIs, the native
+# DuckDB extension (for the locked server) and the browser app (web/, for
+# `dashboard --site`). Checksums are verified against
 # the release's SHA256SUMS. The version comes from <blueprint>/blueprint.json
 # ("anofox_visualization"), not from a flag: every script in this repo uses
 # the pin, never a newer release by accident.
@@ -40,17 +41,19 @@ if [ "$PRINT_DIR" = 1 ]; then echo "$OUT"; exit 0; fi
 BASE="https://github.com/DataZooDE/anofox-visualization/releases/download/$VER"
 CLI="anofox-visualization-cli-$VER-x86_64-unknown-linux-gnu"
 EXT="anofox_visualization.$VER.duckdb-$DUCKDB_VER.linux_amd64.duckdb_extension"
+WEB="anofox-visualization-web-$VER.tar.gz"
 mkdir -p "$OUT"
 cd "$OUT"
-for f in "$CLI.tar.gz" "$EXT"; do
+for f in "$CLI.tar.gz" "$EXT" "$WEB"; do
   [ -f "$f" ] || curl -fsSL -o "$f" "$BASE/$f"
 done
 # Per version: a cached SHA256SUMS of another release would not match.
 SUMS="SHA256SUMS-$VER"
 [ -f "$SUMS" ] || curl -fsSL -o "$SUMS" "$BASE/SHA256SUMS"
-grep -E " ($CLI.tar.gz|$EXT)\$" "$SUMS" | sha256sum -c -
+grep -E " ($CLI.tar.gz|$EXT|$WEB)\$" "$SUMS" | sha256sum -c -
 tar xzf "$CLI.tar.gz"
+rm -rf web && mkdir web && tar xzf "$WEB" -C web --strip-components=1
 ln -sf "$CLI/dashboard" dashboard
 ln -sf "$CLI/serve" serve
 ln -sf "$EXT" anofox_visualization.duckdb_extension
-echo "tools in $(pwd): dashboard, serve, anofox_visualization.duckdb_extension"
+echo "tools in $(pwd): dashboard, serve, anofox_visualization.duckdb_extension, web/"
