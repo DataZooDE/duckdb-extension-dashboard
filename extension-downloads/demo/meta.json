@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-10-23T22:34:00Z",
+  "fetched_at": "2026-10-24T06:46:56Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
@@ -11,8 +11,8 @@
   "first_week": "2024-W40",
   "last_week": "2026-W43",
   "weeks": 86,
-  "extensions": 388,
-  "rows": 12652,
+  "extensions": 398,
+  "rows": 12664,
   "missing_weeks": [
     "2024-W43",
     "2025-W22",
@@ -48,7 +48,7 @@
     },
     {
       "week": "2026-W43",
-      "last_update": "2026-10-23T04:00:39Z"
+      "last_update": "2026-10-24T04:00:42Z"
     }
   ],
   "dropped_files": [
@@ -72,7 +72,7 @@
     },
     {
       "path": "downloads-last-week.json",
-      "last_update": "2026-10-23T04:00:39Z",
+      "last_update": "2026-10-24T04:00:42Z",
       "iso_week": "2026-W43",
       "reason": "same capture as download-stats-weekly/2026/43.json"
     }
