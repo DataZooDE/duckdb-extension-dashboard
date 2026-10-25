@@ -29,5 +29,5 @@ jobs:
       - name: Dashboards on the committed snapshot (strict check, locked-server smoke)
         run: extension-downloads/scripts/ci.sh
 
-      - name: Build the site (dashboard --site of the pinned release: the app, our dashboards, the data)
+      - name: Build the site (dashboard --site of the pinned release, with our dashboards and the data)
         run: scripts/build-site.sh

@@ -63,7 +63,7 @@ jobs:
             git push
           fi
 
-      - name: Build the site (dashboard --site of the pinned release: the app, our dashboards, the data)
+      - name: Build the site (dashboard --site of the pinned release, with our dashboards and the data)
         run: scripts/build-site.sh
 
       - uses: actions/configure-pages@v5
