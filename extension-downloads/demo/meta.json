@@ -1,18 +1,18 @@
 {
-  "fetched_at": "2026-10-26T07:05:18Z",
+  "fetched_at": "2026-10-27T06:52:52Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
     "weekly": "https://community-extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json",
     "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
-    "extensions_commit": "f13027e51107e0248239db3a08161292334e3ca9"
+    "extensions_commit": "f445948531ebb03e2c68c87ab9ba388c45a75a49"
   },
   "what": "Cloudflare's estimate of INSTALL downloads per community extension, all platforms and versions together, per week.",
   "first_week": "2024-W40",
   "last_week": "2026-W44",
   "weeks": 87,
-  "extensions": 400,
-  "rows": 13057,
+  "extensions": 403,
+  "rows": 13060,
   "missing_weeks": [
     "2024-W43",
     "2025-W22",
@@ -48,7 +48,7 @@
     },
     {
       "week": "2026-W44",
-      "last_update": "2026-10-26T04:00:41Z"
+      "last_update": "2026-10-27T04:00:35Z"
     }
   ],
   "dropped_files": [
@@ -72,12 +72,12 @@
     },
     {
       "path": "downloads-last-week.json",
-      "last_update": "2026-10-26T04:00:41Z",
+      "last_update": "2026-10-27T04:00:35Z",
       "iso_week": "2026-W44",
       "reason": "same capture as download-stats-weekly/2026/44.json"
     }
   ],
-  "extensions_in_repo": 388,
+  "extensions_in_repo": 391,
   "contributors": 205,
   "unlisted_extensions": [
     "apple_health",
