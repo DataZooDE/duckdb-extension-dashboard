@@ -85,6 +85,8 @@ CREATE OR REPLACE TEMP VIEW cmp_v AS SELECT CASE WHEN nullif(getvariable('compar
 -- default, the first option, is the top extension); the label carries the
 -- rank and last week's downloads. A native select: typing a name's first
 -- letters jumps to it.
+-- Both pickers in one row (an untitled ::GROUP of inputs).
+SELECT ''::GROUP;
 SELECT a.extension AS extension ::DROPDOWN,
        a.extension || CASE WHEN l.rnk IS NOT NULL
                            THEN '  ·  #' || l.rnk || '  ·  ' || format('{:,}', l.downloads)
@@ -105,6 +107,7 @@ FROM (SELECT 0 AS o, NULL::BIGINT AS r, '(none)' AS v, 'No comparison' AS lab
       FROM (SELECT DISTINCT extension FROM ext_weeks) a
       LEFT JOIN ext_weeks l ON l.extension = a.extension AND l.week_start = getvariable('last_ws'))
 ORDER BY o, r NULLS LAST, v;
+SELECT 1::ENDGROUP;
 
 -- KPI strip: one row even when the extension isn't listed in the latest
 -- week (the values are then empty).
@@ -143,7 +146,7 @@ SELECT 1::ENDGROUP;
 -- Weekly downloads, raw and 4-week median, with the "No data" gaps of the
 -- whole series shaded (each band hangs on the extension's last listed week
 -- before the gap) and a tick strip of this extension's spikes under it.
-SELECT 8::COL; SELECT 172::HEIGHT;
+SELECT 8::COL; SELECT 190::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 WITH span AS (
   SELECT range::DATE AS week_start
