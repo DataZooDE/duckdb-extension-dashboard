@@ -1,6 +1,6 @@
 -- @title Where does every DuckDB extension stand?
 -- @nav Rankings
--- @order 3
+-- @order 2
 -- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, rank
 -- @description Every extension ranked by last week's downloads, with its trend, releases and stars; search by name or description, filter by contributor.
@@ -70,6 +70,28 @@ GROUP BY 1;
 CREATE OR REPLACE TEMP VIEW ext_owner AS
 SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo, e.stars, e.description
 FROM read_parquet(getvariable('f_extensions')) e LEFT JOIN user_groups g USING (extension);
+
+-- Maintenance (the same view in overview.sql, rankings.sql and
+-- extension.sql). Built: the extension's linux_amd64 binary is published
+-- for the newest DuckDB release or the newest of the minor line before it
+-- (extensions.parquet's built_latest / built_previous, checked by fetch.sh).
+-- Not in repo: no longer in duckdb/community-extensions (moved to core,
+-- removed). Archived: archived on GitHub. Not built – risk: built for
+-- neither DuckDB line. Active: built, and a commit on the default branch
+-- or a community release in the 90 days to the latest capture. Mature:
+-- built, no such activity (finished, not abandoned). The words are picked
+-- for ::BADGE's colour keywords: "active" green, "risk" amber, the rest grey.
+CREATE OR REPLACE TEMP VIEW ext_health AS
+SELECT e.extension, e.duckdb_latest, e.built_latest, e.duckdb_previous, e.built_previous,
+       greatest(e.last_commit, r.last_rel) AS last_activity,
+       CASE WHEN e.repo IS NULL THEN 'Not in repo'
+            WHEN e.archived THEN 'Archived'
+            WHEN NOT coalesce(e.built_latest OR e.built_previous, false) THEN 'Not built – risk'
+            WHEN greatest(e.last_commit, r.last_rel) > (SELECT max(last_update) FROM weeks) - INTERVAL 90 DAY THEN 'Active'
+            ELSE 'Mature' END AS maintenance
+FROM read_parquet(getvariable('f_extensions')) e
+LEFT JOIN (SELECT extension, max(released_at) AS last_rel FROM read_parquet(getvariable('f_ext_releases'))
+           WHERE kind <> 'bulk' AND released_at <= (SELECT max(last_update) FROM weeks) GROUP BY extension) r USING (extension);
 
 -- The extensions both inputs let through (the contributor pick and the
 -- search text); every panel below shows only these.
@@ -152,6 +174,8 @@ SELECT c.rnk AS "Rank" ::PAGED,
        round(c.med4)::BIGINT AS "4-week median",
        t.trend_pct AS "Trend %" ::PERCENT,
        s.last13 AS "Last 13 weeks" ::SPARKLINE,
+       coalesce(h.maintenance, 'Not in repo') AS "Maintenance" ::BADGE,
+       CASE h.built_latest WHEN true THEN '✓' WHEN false THEN '✗' END AS "On newest DuckDB",
        coalesce(r.rel90, 0) AS "Releases (90 d)",
        strftime(r.last_rel, '%Y-%m-%d') AS "Last release",
        CASE WHEN e.first_seen <= getvariable('full_list_from') THEN 'by ' || strftime(e.first_seen, '%Y-%m-%d')
@@ -161,13 +185,14 @@ SELECT c.rnk AS "Rank" ::PAGED,
        CASE WHEN (SELECT flt FROM flt_v) = '(all)' THEN 'Every extension' ELSE 'Extensions of ' || (SELECT flt FROM flt_v) END
          || CASE WHEN (SELECT q FROM q_v) = '' THEN '' ELSE ' matching "' || (SELECT q FROM q_v) || '"' END
          || ', ranked by downloads, 7 days to ' || getvariable('last_label') ::TITLE,
-       'Rank: among all extensions, whatever the filter. Contributor: the GitHub owner of the extension''s repo ("(unlisted)": no longer in the community-extensions repo; ★ marks DataZooDE). Stars: the repo''s GitHub stars (shared by extensions in one repo; see the Stars page). Places: previous week''s rank minus this week''s (positive = moved up). 4-week median: this and the previous 3 listed weeks, robust to one-week spikes. Trend %: the median of the last 4 weeks with data against the 4 weeks 8 weeks earlier (weeks 9-12 back), spike-corrected; empty below 100 downloads before or with fewer than 3 listed weeks in a window. Last 13 weeks: the listed weeks among the last 13 with data. First seen: "by" a date in or before 2025-11-10, when the site still listed only about the top 50 extensions (the extension may be older). Releases (90 d) and Last release: new pinned commits (repo.ref) of the extension merged on main of duckdb/community-extensions, up to the latest capture; DuckDB-team bulk updates are not counted. Spike – watch: more than 5x the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads).'::INFO
+       'Rank: among all extensions, whatever the filter. Contributor: the GitHub owner of the extension''s repo ("(unlisted)": no longer in the community-extensions repo; ★ marks DataZooDE). Stars: the repo''s GitHub stars (shared by extensions in one repo; see the Stars page). Places: previous week''s rank minus this week''s (positive = moved up). 4-week median: this and the previous 3 listed weeks, robust to one-week spikes. Trend %: the median of the last 4 weeks with data against the 4 weeks 8 weeks earlier (weeks 9-12 back), spike-corrected; empty below 100 downloads before or with fewer than 3 listed weeks in a window. Last 13 weeks: the listed weeks among the last 13 with data. First seen: "by" a date in or before 2025-11-10, when the site still listed only about the top 50 extensions (the extension may be older). Maintenance: Active (built for the current DuckDB, and a commit or release in the last 90 days), Mature (built, no recent activity: finished, not abandoned), Not built – risk (no linux_amd64 binary for the newest DuckDB release or the newest of the minor line before it), Archived (on GitHub), Not in repo (moved to core or removed). On newest DuckDB: a binary for the newest DuckDB release (' || coalesce((SELECT any_value(duckdb_latest) FROM ext_health), '?') || '). Releases (90 d) and Last release: new pinned commits (repo.ref) of the extension merged on main of duckdb/community-extensions, up to the latest capture; DuckDB-team bulk updates are not counted. Spike – watch: more than 5x the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads).'::INFO
 FROM everyone e
 LEFT JOIN cur c USING (extension)
 LEFT JOIN prev p USING (extension)
 LEFT JOIN spark s USING (extension)
 LEFT JOIN rel r USING (extension)
 LEFT JOIN trend t USING (extension)
+LEFT JOIN ext_health h USING (extension)
 LEFT JOIN ext_owner o USING (extension)
 WHERE e.extension IN (SELECT extension FROM shown_v)
 ORDER BY c.rnk NULLS LAST, e.extension;

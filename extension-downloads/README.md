@@ -14,8 +14,8 @@ every extension ranks. Built with
 | Dashboard | Question it answers |
 |---|---|
 | [`overview.sql`](overview.sql) (home) | Is the extension ecosystem growing, and what's hot? |
-| [`extension.sql`](extension.sql) | How is one extension doing? |
 | [`rankings.sql`](rankings.sql) | Where does every extension stand? |
+| [`extension.sql`](extension.sql) | How is one extension doing? |
 | [`stars.sql`](stars.sql) | Do stars and releases go with downloads? |
 
 ## Input (what you must provide)
@@ -26,7 +26,7 @@ both written by [`scripts/fetch.sh`](scripts/fetch.sh):
 | File | Shape |
 |---|---|
 | `downloads.parquet` | One row per ISO week and extension: `year`, `week` (ISO), `week_start` (DATE, the ISO Monday), `extension`, `downloads` (BIGINT), `last_update` (TIMESTAMP, UTC: when the site captured that week), `provisional` (BOOLEAN) |
-| `extensions.parquet` | One row per extension: its `description.yml` fields, `owner` (the contributor) and the repo's GitHub `stars`, `forks`, `repo_created`, `repo_pushed`, `archived`, `repo_now` (where GitHub resolves it today), `open_issues` and `last_commit` (the default branch's latest commit) |
+| `extensions.parquet` | One row per extension: its `description.yml` fields, `owner` (the contributor) and the repo's GitHub `stars`, `forks`, `repo_created`, `repo_pushed`, `archived`, `repo_now` (where GitHub resolves it today), `open_issues`, `last_commit` (the default branch's latest commit), and `duckdb_latest` / `built_latest`, `duckdb_previous` / `built_previous` (is its linux_amd64 binary published for the newest DuckDB release, and for the newest of the minor line before it) |
 | `core_downloads.parquet` | DuckDB's core extensions (httpfs, json, …) from `extensions.duckdb.org`, in the shape of `downloads.parquet` and built by the same rules; from 2025-W39 (continuous from 2025-12-01). Keys that are no extension name (`%68ttpfs`) are dropped |
 | `releases.parquet` | One row per community release of an extension, from the history of its `description.yml` on main of duckdb/community-extensions (PRs dated at their merge): `extension`, `released_at` (UTC), `week_start`, `version`, `ref`, `commit`, `kind` (`first`: its first listing; `release`: a new `repo.ref`; `bulk`: a new ref from a DuckDB-team commit changing more than 3 extensions) |
 | `stars.parquet` | One row per fetch day and repo: `date`, `repo`, `stars`, `forks`. Each fetch adds that day's snapshot to the history already in the data root: GitHub shows a repo's stargazers with their dates to its admins only, so the history starts with the first fetch (2026-10-30) |
@@ -72,8 +72,8 @@ Variables a viewer may set (each dashboard's `-- @vars`):
 | Variable | Dashboard | Meaning |
 |---|---|---|
 | `extension` | extension.sql | the extension shown (dropdown, `?v.extension=<name>`, links from the other dashboards; a `path_vars` entry in [`locked.json`](locked.json)). Default: the latest week's top extension |
-| `q` | rankings.sql | show only the extensions whose name or description contains this text, ignoring case (default empty: all) |
 | `contributor` | rankings.sql | show only this contributor's extensions (default `(all)`) |
+| `q` | rankings.sql | show only the extensions whose name or description contains this text, ignoring case (default empty: all) |
 | `compare` | extension.sql | a second extension on the charts (default `(none)`) |
 
 ### Demo snapshot
@@ -148,9 +148,12 @@ Every page fits a 1920×1080 screen without scrolling.
     downloads, and weeks listed.
   - A "Compare with" dropdown (`compare`, default "(none)") adds a second
     extension to the downloads, rank and share charts.
-  - A maintenance card: Active / Quiet / Dormant / Archived from the last
-    commit and the last release (90 days, a year), with the repository,
-    open issues, stars and forks.
+  - A maintenance card: Active (built for the current DuckDB, and a commit
+    or release in the last 90 days), Mature (built, no recent activity),
+    Not built – risk (no linux_amd64 binary for the two newest DuckDB
+    lines), Archived, Not in repo; with the builds per DuckDB version, the
+    repository, last commit and release, open issues, stars and forks. The
+    same status is a column in Rankings and in Overview's movers table.
   - Weekly downloads with the 4-week median, "No data" bands, and two tick
     strips below: spikes (hover for the numbers) and the extension's own
     releases (hover for the version and merge date; bulk updates left out).

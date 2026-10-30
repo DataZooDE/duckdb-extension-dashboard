@@ -114,6 +114,9 @@ FROM (
   UNION ALL
   SELECT 4, 'GitHub repos not found', array_to_string(m.github.repos_not_found, ', ') FROM m
   UNION ALL
+  SELECT 4.1, 'Builds checked', m.builds.built_latest || ' of ' || m.builds.checked || ' extensions built for DuckDB ' || m.builds.latest
+         || ', ' || m.builds.built_previous || ' for ' || m.builds.previous || ' (linux_amd64)' FROM m
+  UNION ALL
   SELECT 4.2, 'Core extension downloads', m.core.weeks || ' weeks (' || m.core.first_week || ' to ' || m.core.last_week || '), ' || m.core.extensions || ' extensions' FROM m
   UNION ALL
   SELECT 4.5, 'Extension releases', m.releases.releases || ' releases of ' || m.releases.extensions || ' extensions, '

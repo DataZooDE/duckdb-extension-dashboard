@@ -33,6 +33,17 @@ case-folded to the most common one (`Query-farm` → `query-farm`).
 The maintainer handles are public GitHub user names that their owners
 published in the repo themselves.
 
+## Builds (`extensions.parquet` → `built_latest`, `built_previous`)
+
+For the newest DuckDB release and the newest release of the minor line
+before it (from duckdb/duckdb's releases), `fetch.sh` sends one HEAD request
+per extension in the repo to
+`community-extensions.duckdb.org/<version>/linux_amd64/<extension>.duckdb_extension.gz`
+(about 800 requests, 8 at a time): 200 = built, 404 = not built. Only
+linux_amd64 is checked. This is the maintenance signal that is fair to
+mature extensions: one with no recent commits is fine as long as DuckDB
+still builds it.
+
 ## Core extensions (`core_downloads.parquet`)
 
 `extensions.duckdb.org` publishes the same weekly files as the community

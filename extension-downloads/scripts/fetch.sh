@@ -56,6 +56,12 @@
 # <raw>/extensions.jsonl and <raw>/releases.jsonl, so --from-raw needs
 # neither git nor Python's yaml.
 #
+# Builds: for the newest DuckDB release and the newest release of the
+# minor line before it (from duckdb/duckdb's releases), a HEAD request per
+# extension in the repo checks that its linux_amd64 binary is published
+# (<raw>/builds.tsv). A mature extension with no recent commits is fine as
+# long as it is still built; one missing for the newest DuckDB is a risk.
+#
 # Core extensions: extensions.duckdb.org publishes the same files
 # (downloads-last-week.json, download-stats-weekly/{YEAR}/{WEEK}.json) for
 # DuckDB's own extensions, from 2025; fetched the same way into <raw>/core/.
@@ -96,7 +102,7 @@ else
   [ -n "$RAW" ] || RAW="$TMP/raw"
   mkdir -p "$RAW"
   RAW="$(cd "$RAW" && pwd)"
-  rm -rf "${RAW:?}"/weekly "$RAW"/last-week.json "$RAW"/_fetched_at "$RAW"/community-extensions "$RAW"/extensions.jsonl "$RAW"/_extensions_commit "$RAW"/github "$RAW"/releases.jsonl "$RAW"/core "$RAW"/errors
+  rm -rf "${RAW:?}"/weekly "$RAW"/last-week.json "$RAW"/_fetched_at "$RAW"/community-extensions "$RAW"/extensions.jsonl "$RAW"/_extensions_commit "$RAW"/github "$RAW"/releases.jsonl "$RAW"/core "$RAW"/errors "$RAW"/builds.tsv "$RAW"/_build_versions
   mkdir -p "$RAW/weekly" "$RAW/core/weekly"
   date -u +%Y-%m-%dT%H:%M:%SZ >"$RAW/_fetched_at"
   # One "<year> <week as written in the path>" per line.
@@ -148,8 +154,32 @@ else
     ${GH_TOKEN:+-H "Authorization: Bearer $GH_TOKEN"} \
     "https://api.github.com/repos/duckdb/duckdb/releases?per_page=100"
   python3 "$HERE/fetch-stars.py" "$RAW/extensions.jsonl" "$RAW/github"
+  # Builds: is each extension's binary published for the newest DuckDB
+  # release and for the newest release of the minor line before it
+  # (linux_amd64; a HEAD request each, 200 = built, 404 = not built)?
+  python3 - "$RAW/duckdb-releases.json" >"$RAW/_build_versions" <<'PY'
+import json, re, sys
+tags = sorted({tuple(map(int, m.groups())) for r in json.load(open(sys.argv[1])) if not r.get("prerelease")
+               for m in [re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", r["tag_name"])] if m}, reverse=True)
+latest = tags[0]
+previous = next(t for t in tags if t[:2] != latest[:2])
+print("v%d.%d.%d v%d.%d.%d" % (latest + previous))
+PY
+  python3 -c 'import json,sys; [print(n) for n in sorted({json.loads(l)["extension"] for l in open(sys.argv[1])})]' "$RAW/extensions.jsonl" \
+    | while read -r ext; do for v in $(cat "$RAW/_build_versions"); do echo "$ext $v"; done; done >"$TMP/builds"
+  xargs -P 8 -L 1 sh -c '
+    code=$(curl -sS -I --retry 3 --retry-delay 2 -o /dev/null -w "%{http_code}" "$1/$3/linux_amd64/$2.duckdb_extension.gz") || code=curl
+    printf "%s\t%s\t%s\n" "$2" "$3" "$code"
+  ' "$RAW" "$BASE" <"$TMP/builds" | sort >"$RAW/builds.tsv"
+  if awk -F'\t' '$3 != 200 && $3 != 404' "$RAW/builds.tsv" | grep -q .; then
+    echo "fetch.sh: some build checks failed (not 200/404):" >&2
+    awk -F'\t' '$3 != 200 && $3 != 404' "$RAW/builds.tsv" >&2
+    exit 1
+  fi
+  echo "checked $(wc -l <"$RAW/builds.tsv") builds for $(cat "$RAW/_build_versions")"
 fi
 [ -f "$RAW/extensions.jsonl" ] || { echo "fetch.sh: $RAW has no extensions.jsonl (fetched before the metadata step: fetch again)" >&2; exit 1; }
+[ -f "$RAW/builds.tsv" ] || { echo "fetch.sh: $RAW has no builds.tsv (fetched before the build check: fetch again)" >&2; exit 1; }
 [ -f "$RAW/core/last-week.json" ] || { echo "fetch.sh: $RAW has no core/last-week.json (fetched before the core step: fetch again)" >&2; exit 1; }
 [ -f "$RAW/releases.jsonl" ] || { echo "fetch.sh: $RAW has no releases.jsonl (fetched before the releases step: fetch again)" >&2; exit 1; }
 [ -f "$RAW/github/repos.jsonl" ] || { echo "fetch.sh: $RAW has no github/repos.jsonl (fetched before the stars step: fetch again)" >&2; exit 1; }
@@ -177,7 +207,7 @@ python3 - "$TMP/meta.rows" "$OUT/meta.json" "$FETCHED_AT" "$BASE" "$(cat "$RAW/_
 import json, sys
 rows, out, fetched_at, base, commit, core_base = sys.argv[1:]
 m = json.load(open(rows))[0]
-for k in ("missing_weeks", "provisional_weeks", "dropped_files", "unlisted_extensions", "github", "releases", "core"):
+for k in ("missing_weeks", "provisional_weeks", "dropped_files", "unlisted_extensions", "github", "releases", "core", "builds"):
     m[k] = json.loads(m[k]) if isinstance(m[k], str) else m[k]
 meta = {
     "fetched_at": fetched_at,
@@ -187,6 +217,7 @@ meta = {
         "weekly": f"{base}/download-stats-weekly/{{YEAR}}/{{WEEK}}.json",
         "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
         "extensions_commit": commit,
+        "builds": f"{base}/<version>/linux_amd64/<extension>.duckdb_extension.gz (HEAD: 200 = built)",
         "core": f"{core_base}/download-stats-weekly/{{YEAR}}/{{WEEK}}.json (DuckDB's core extensions, same format)",
         "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
         "github": "https://api.github.com/graphql (each extension repo's stargazerCount, forkCount and stargazers' starredAt)",
@@ -205,6 +236,7 @@ meta = {
     "unlisted_extensions": m["unlisted_extensions"],
     "releases": m["releases"],
     "core": m["core"],
+    "builds": m["builds"],
     "github": m["github"],
 }
 with open(out + ".tmp", "w") as f:

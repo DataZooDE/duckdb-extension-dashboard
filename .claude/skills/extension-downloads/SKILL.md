@@ -74,6 +74,7 @@ The setup layer is identical in all three files, copied rather than shared
 | rankings.sql | `TEMP VIEW trend` / `'Trending'::TAB` | Trend % (last 4 weeks vs weeks 9-12 back, spike-corrected) and the Trending tab |
 | extension.sql | `TEMP VIEW cmp_v` | The `compare` extension (NULL for "(none)" or itself) |
 | extension.sql | `### Maintenance` | Maintenance card (::MARKDOWN + ::CALLOUT) |
+| overview/rankings/extension.sql | `TEMP VIEW ext_health` | The Maintenance status, copied in all three (Active / Mature / Not built – risk / Archived / Not in repo; the words match ::BADGE's colour keywords: "active" green, "risk" amber, "stable" would be amber) |
 | stars.sql | `TEMP VIEW fit` | The log-log fit log10(usage) ~ log10(stars), which the KPIs, scatter colours and both tables use |
 | stars.sql | `TEMP VIEW ext_act` / `TEMP VIEW around` | Releases tab: per-extension releases in the 90 days to the latest capture, and the 4-weeks-after vs before comparison (release weeks vs other weeks) |
 | stars.sql | `::SCATTER` | Stars vs downloads. No `::LINK`: a scatter's link gets only `{value}` (the x), and `{column}` stays empty |

@@ -1,6 +1,6 @@
 -- @title How is one DuckDB extension doing?
 -- @nav Extension
--- @order 2
+-- @order 3
 -- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, rank
 -- @description One extension's weekly installs with spikes and releases, rank and share over time, maintenance, and a side-by-side comparison.
@@ -14,10 +14,8 @@
 -- below), the dropdown's first option. `compare` (the second dropdown,
 -- ?v.compare=<name>; default "(none)") adds a second extension to the
 -- downloads, rank and share charts; the KPIs, spikes, releases, gaps and
--- maintenance stay the first extension's. Maintenance (extensions.parquet
--- from fetch-stars.py, releases.parquet): Active = a commit on the default
--- branch or a release in the 90 days to the latest capture, Quiet = within
--- 365 days, Dormant = older, Archived = the repo is archived on GitHub.
+-- maintenance stay the first extension's. Maintenance: see the ext_health
+-- view below (Active / Mature / Not built – risk / Archived / Not in repo).
 -- Definitions (week, provisional,
 -- gap, "not listed", spike, 4-week median): see overview.sql's header --
 -- the setup views below are the same, copied.
@@ -76,6 +74,28 @@ CREATE OR REPLACE TEMP VIEW sel_v AS SELECT coalesce(nullif(getvariable('extensi
                              ORDER BY downloads DESC, extension LIMIT 1)) AS sel;
 CREATE OR REPLACE TEMP VIEW sel_contributor_v AS SELECT coalesce((SELECT contributor FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)), '(unlisted)') AS sel_contributor,
                                                           (SELECT stars FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)) AS sel_stars;
+-- Maintenance (the same view in overview.sql, rankings.sql and
+-- extension.sql). Built: the extension's linux_amd64 binary is published
+-- for the newest DuckDB release or the newest of the minor line before it
+-- (extensions.parquet's built_latest / built_previous, checked by fetch.sh).
+-- Not in repo: no longer in duckdb/community-extensions (moved to core,
+-- removed). Archived: archived on GitHub. Not built – risk: built for
+-- neither DuckDB line. Active: built, and a commit on the default branch
+-- or a community release in the 90 days to the latest capture. Mature:
+-- built, no such activity (finished, not abandoned). The words are picked
+-- for ::BADGE's colour keywords: "active" green, "risk" amber, the rest grey.
+CREATE OR REPLACE TEMP VIEW ext_health AS
+SELECT e.extension, e.duckdb_latest, e.built_latest, e.duckdb_previous, e.built_previous,
+       greatest(e.last_commit, r.last_rel) AS last_activity,
+       CASE WHEN e.repo IS NULL THEN 'Not in repo'
+            WHEN e.archived THEN 'Archived'
+            WHEN NOT coalesce(e.built_latest OR e.built_previous, false) THEN 'Not built – risk'
+            WHEN greatest(e.last_commit, r.last_rel) > (SELECT max(last_update) FROM weeks) - INTERVAL 90 DAY THEN 'Active'
+            ELSE 'Mature' END AS maintenance
+FROM read_parquet(getvariable('f_extensions')) e
+LEFT JOIN (SELECT extension, max(released_at) AS last_rel FROM read_parquet(getvariable('f_ext_releases'))
+           WHERE kind <> 'bulk' AND released_at <= (SELECT max(last_update) FROM weeks) GROUP BY extension) r USING (extension);
+
 -- The comparison extension: NULL for "(none)", an empty pick or the
 -- extension itself.
 CREATE OR REPLACE TEMP VIEW cmp_v AS SELECT CASE WHEN nullif(getvariable('compare'), '') IN ('(none)', (SELECT sel FROM sel_v)) THEN NULL
@@ -265,33 +285,32 @@ SELECT week_start ::XAXIS, extension ::CATEGORY, round(100.0 * downloads / total
 FROM ext_weeks WHERE extension IN ((SELECT sel FROM sel_v), (SELECT cmp FROM cmp_v))
 ORDER BY week_start, extension = (SELECT sel FROM sel_v) DESC;
 
--- Maintenance: is the extension looked after? From the GitHub fetch
--- (last commit on the default branch, open issues, archived) and the
--- community releases, against the latest capture.
+-- Maintenance: is the extension looked after? The ext_health status, the
+-- builds for the two newest DuckDB lines, and the GitHub and release
+-- details behind it.
 SELECT 4::COL;
 WITH o AS (SELECT * FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)),
+h AS (SELECT * FROM ext_health WHERE extension = (SELECT sel FROM sel_v)),
 r AS (SELECT max(released_at) AS last_rel,
              arg_max(coalesce('v' || ltrim(version, 'v'), left(ref, 7)), released_at) AS last_what,
              count(*) FILTER (WHERE released_at > getvariable('ref_ts') - INTERVAL 90 DAY) AS rel90
       FROM read_parquet(getvariable('f_ext_releases'))
       WHERE extension = (SELECT sel FROM sel_v) AND kind <> 'bulk' AND released_at <= getvariable('ref_ts')),
-m AS (SELECT o.*, r.*, greatest(o.last_commit, r.last_rel) AS last_activity,
-             CASE WHEN o.repo IS NULL THEN 'Unknown'
-                  WHEN o.archived THEN 'Archived'
-                  WHEN greatest(o.last_commit, r.last_rel) > getvariable('ref_ts') - INTERVAL 90 DAY THEN 'Active'
-                  WHEN greatest(o.last_commit, r.last_rel) > getvariable('ref_ts') - INTERVAL 365 DAY THEN 'Quiet'
-                  ELSE 'Dormant' END AS status
-      FROM (SELECT 1) one LEFT JOIN o ON true LEFT JOIN r ON true)
+m AS (SELECT o.*, r.*, coalesce(h.maintenance, 'Not in repo') AS status,
+             h.duckdb_latest, h.built_latest, h.duckdb_previous, h.built_previous
+      FROM (SELECT 1) one LEFT JOIN o ON true LEFT JOIN r ON true LEFT JOIN h ON true)
 SELECT '### Maintenance: ' || status || chr(10) || chr(10)
        || CASE WHEN repo IS NULL THEN '- Not in the community-extensions repo any more (moved into DuckDB core, or removed).'
-               ELSE '- **Repository**: [' || coalesce(repo_now, repo) || '](https://github.com/' || coalesce(repo_now, repo) || ')'
-                    || CASE WHEN archived THEN ' (archived)' ELSE '' END || chr(10)
-                    || '- **Last commit**: ' || coalesce(strftime(last_commit, '%-d %b %Y'), '—') || chr(10)
+               ELSE '- **Built for DuckDB**: ' || duckdb_latest || CASE WHEN built_latest THEN ' ✓' ELSE ' ✗' END
+                    || ' · ' || duckdb_previous || CASE WHEN built_previous THEN ' ✓' ELSE ' ✗' END || chr(10)
+                    || '- **Repository**: [' || coalesce(repo_now, repo) || '](https://github.com/' || coalesce(repo_now, repo) || ')'
+                    || CASE WHEN archived THEN ' (archived)' ELSE '' END
+                    || ' · last commit ' || coalesce(strftime(last_commit, '%-d %b %Y'), '—') || chr(10)
                     || '- **Last release**: ' || coalesce(last_what || ', ' || strftime(last_rel, '%-d %b %Y'), '—')
                     || ' · ' || coalesce(rel90, 0) || ' in 90 days' || chr(10)
                     || '- **Open issues**: ' || coalesce(open_issues::VARCHAR, '—')
                     || ' · **Stars**: ' || coalesce(format('{:,}', stars), '—') || ' · **Forks**: ' || coalesce(forks::VARCHAR, '—') END
-       || chr(10) || chr(10) || 'Active: a commit or release in the 90 days to ' || getvariable('last_label')
-       || '; Quiet: within a year; Dormant: older.' ::MARKDOWN,
-       CASE status WHEN 'Active' THEN 'success' WHEN 'Quiet' THEN 'note' ELSE 'warning' END ::CALLOUT
+       || chr(10) || chr(10) || 'Active: built, with a commit or release in the 90 days to ' || getvariable('last_label')
+       || '. Mature: built, no recent activity (finished, not abandoned). Not built – risk: no binary for either DuckDB line (linux_amd64).' ::MARKDOWN,
+       CASE status WHEN 'Active' THEN 'success' WHEN 'Mature' THEN 'note' ELSE 'warning' END ::CALLOUT
 FROM m;

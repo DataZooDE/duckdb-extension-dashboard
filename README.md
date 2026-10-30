@@ -19,7 +19,7 @@
 
 - **Community vs core:** DuckDB's own extensions (httpfs, json, …) next to the community ones, week by week; community is about a tenth of all extension downloads and grows faster.
 - **The whole ecosystem at a glance:** about 3 million installs a week across more than 370 extensions, with every DuckDB release marked on the timeline.
-- **Any extension in depth:** weekly downloads with the extension's own releases marked, rank over time, share of all installs, a maintenance card (last commit, last release, open issues), its neighbours in the ranking, and a side-by-side comparison with any other extension. Pick one from the dropdown, live in your browser.
+- **Any extension in depth:** weekly downloads with the extension's own releases marked, rank over time, share of all installs, a maintenance card (built for the current DuckDB? last commit, last release, open issues), its neighbours in the ranking, and a side-by-side comparison with any other extension. Pick one from the dropdown, live in your browser.
 - **Who builds DuckDB's extensions:** more than 200 contributors, ranked, with the top 15 shown raw and spike-corrected side by side.
 - **Stars vs downloads:** every extension repo's GitHub stars against its usage. Stars explain only about a tenth of the spread in downloads, and the page lists the extensions used far more, or far less, than their stars suggest.
 - **Releases vs downloads:** every extension's community releases, from the history of duckdb/community-extensions. Extensions with a release in the last 90 days have about twice the downloads, and downloads rise more after a release than in other weeks.
@@ -38,8 +38,8 @@
 | Page | Question it answers | SQL |
 |---|---|---|
 | [Overview](https://datazoode.github.io/duckdb-extension-dashboard/) | Is the ecosystem growing, and what's hot? | [`overview.sql`](extension-downloads/overview.sql) |
-| [Extension](https://datazoode.github.io/duckdb-extension-dashboard/d/extension/) | How is one extension doing? | [`extension.sql`](extension-downloads/extension.sql) |
 | [Rankings](https://datazoode.github.io/duckdb-extension-dashboard/d/rankings/) | Where does every extension stand, and what is trending? Search by name or description. | [`rankings.sql`](extension-downloads/rankings.sql) |
+| [Extension](https://datazoode.github.io/duckdb-extension-dashboard/d/extension/) | How is one extension doing? | [`extension.sql`](extension-downloads/extension.sql) |
 | [Contributors](https://datazoode.github.io/duckdb-extension-dashboard/d/contributors/) | Who builds the ecosystem? | [`contributors.sql`](extension-downloads/contributors.sql) |
 | [Contributor](https://datazoode.github.io/duckdb-extension-dashboard/d/contributor/) | How is one contributor doing vs everyone else? | [`contributor.sql`](extension-downloads/contributor.sql) |
 | [Stars & releases](https://datazoode.github.io/duckdb-extension-dashboard/d/stars/) | Do stars and releases go with downloads? | [`stars.sql`](extension-downloads/stars.sql) |

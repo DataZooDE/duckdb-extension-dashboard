@@ -44,6 +44,8 @@ SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
 SET VARIABLE f_releases = getvariable('anofox_data') || '/duckdb_releases.parquet';
 SET VARIABLE f_core = getvariable('anofox_data') || '/core_downloads.parquet';
+SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
+SET VARIABLE f_ext_releases = getvariable('anofox_data') || '/releases.parquet';
 
 CREATE OR REPLACE TEMP VIEW weeks AS
 SELECT week_start, any_value(year) AS year, any_value(week) AS week,
@@ -67,6 +69,28 @@ FROM (SELECT d.extension, d.week_start, d.downloads, w.wi, w.total,
 SET VARIABLE last_ws = (SELECT max(week_start) FROM weeks);
 SET VARIABLE prev_ws = (SELECT max(week_start) FROM weeks WHERE week_start < getvariable('last_ws'));
 SET VARIABLE last_label = (SELECT strftime(last_update, '%-d %b') FROM weeks WHERE week_start = getvariable('last_ws'));
+
+-- Maintenance (the same view in overview.sql, rankings.sql and
+-- extension.sql). Built: the extension's linux_amd64 binary is published
+-- for the newest DuckDB release or the newest of the minor line before it
+-- (extensions.parquet's built_latest / built_previous, checked by fetch.sh).
+-- Not in repo: no longer in duckdb/community-extensions (moved to core,
+-- removed). Archived: archived on GitHub. Not built – risk: built for
+-- neither DuckDB line. Active: built, and a commit on the default branch
+-- or a community release in the 90 days to the latest capture. Mature:
+-- built, no such activity (finished, not abandoned). The words are picked
+-- for ::BADGE's colour keywords: "active" green, "risk" amber, the rest grey.
+CREATE OR REPLACE TEMP VIEW ext_health AS
+SELECT e.extension, e.duckdb_latest, e.built_latest, e.duckdb_previous, e.built_previous,
+       greatest(e.last_commit, r.last_rel) AS last_activity,
+       CASE WHEN e.repo IS NULL THEN 'Not in repo'
+            WHEN e.archived THEN 'Archived'
+            WHEN NOT coalesce(e.built_latest OR e.built_previous, false) THEN 'Not built – risk'
+            WHEN greatest(e.last_commit, r.last_rel) > (SELECT max(last_update) FROM weeks) - INTERVAL 90 DAY THEN 'Active'
+            ELSE 'Mature' END AS maintenance
+FROM read_parquet(getvariable('f_extensions')) e
+LEFT JOIN (SELECT extension, max(released_at) AS last_rel FROM read_parquet(getvariable('f_ext_releases'))
+           WHERE kind <> 'bulk' AND released_at <= (SELECT max(last_update) FROM weeks) GROUP BY extension) r USING (extension);
 
 -- Core vs community tab: one row per week both files have (setup here,
 -- before the first tab, so the variable below sees the view).
@@ -209,9 +233,10 @@ SELECT extension AS "Extension" ::TABLE,
        round(downloads - before4)::BIGINT AS "Change" ::COLORSCALE_DIVERGING,
        CASE WHEN before4 > 0 THEN round(100 * (downloads / before4 - 1)) END AS "Change %" ::PERCENT,
        CASE WHEN spike THEN 'Spike – watch' ELSE 'Steady' END AS "Pattern" ::BADGE,
+       coalesce((SELECT maintenance FROM ext_health h WHERE h.extension = m.extension), 'Not in repo') AS "Maintenance" ::BADGE,
        '/d/extension?v.extension={Extension}' AS "Details" ::LINK,
        'Biggest movers vs the 4 weeks before'::TITLE,
-       'Latest capture against the mean of the 4 weeks with data before it, largest absolute change first; extensions with at least 1,000 downloads on one side. "Spike – watch": this week is more than 5x the extension''s recent median, so read the jump as likely CI or bot traffic until it holds.'::INFO
+       'Latest capture against the mean of the 4 weeks with data before it, largest absolute change first; extensions with at least 1,000 downloads on one side. "Spike – watch": this week is more than 5x the extension''s recent median, so read the jump as likely CI or bot traffic until it holds. Maintenance: Active (a commit or release in the last 90 days), Mature (still built for the current DuckDB, no recent activity: finished, not abandoned), Not built – risk (no binary for the two newest DuckDB lines), Archived, Not in repo.'::INFO
 FROM m
 ORDER BY abs(downloads - before4) DESC, extension
 LIMIT 6;

@@ -25,6 +25,11 @@
 --     the ISO week of _last_update, the latest capture wins, empty files
 --     dropped). Keys that are no extension name (`%68ttpfs`, a URL-encoded
 --     httpfs) are left out: only [a-z0-9_] names not starting with _ are kept.
+--   * Builds (fetch.sh's builds.tsv: extension, DuckDB version, HTTP code of
+--     a HEAD on its linux_amd64 binary): extensions.parquet gets
+--     duckdb_latest / built_latest (the newest DuckDB release) and
+--     duckdb_previous / built_previous (the newest of the minor line
+--     before). NULL for an extension not in the repo (not checked).
 --   * releases.parquet (parse-releases.py's releases.jsonl: every change of
 --     a description.yml on main, PRs dated at their merge): a release is a
 --     change of the extension's `repo.ref`, the commit DuckDB builds. kind:
@@ -139,6 +144,13 @@ SELECT * FROM read_json(getvariable('raw') || '/github/repos.jsonl', format = 'n
                                    open_issues: 'BIGINT', last_commit: 'VARCHAR'});
 
 
+CREATE TEMP TABLE builds AS
+SELECT * FROM read_csv(getvariable('raw') || '/builds.tsv', delim = '\t', header = false,
+                       columns = {extension: 'VARCHAR', version: 'VARCHAR', code: 'INTEGER'});
+CREATE TEMP TABLE build_versions AS
+SELECT version, row_number() OVER (ORDER BY string_split(ltrim(version, 'v'), '.')::INTEGER[] DESC) AS n
+FROM (SELECT DISTINCT version FROM builds);
+
 CREATE TEMP TABLE extensions AS
 SELECT n.extension, m.description, m.language, m.license, m.version, m.repo,
        coalesce(m.owner, '(unlisted)') AS owner,
@@ -150,10 +162,16 @@ SELECT n.extension, m.description, m.language, m.license, m.version, m.repo,
        g.archived,
        g.name_with_owner AS repo_now,
        g.open_issues,
-       replace(g.last_commit, 'Z', '')::TIMESTAMP AS last_commit
+       replace(g.last_commit, 'Z', '')::TIMESTAMP AS last_commit,
+       (SELECT version FROM build_versions WHERE n = 1) AS duckdb_latest,
+       bl.code = 200 AS built_latest,
+       (SELECT version FROM build_versions WHERE n = 2) AS duckdb_previous,
+       bp.code = 200 AS built_previous
 FROM (SELECT DISTINCT extension FROM downloads UNION SELECT extension FROM ext_meta) n
 LEFT JOIN ext_meta m USING (extension)
-LEFT JOIN gh_repos g ON g.repo = m.repo AND g.found;
+LEFT JOIN gh_repos g ON g.repo = m.repo AND g.found
+LEFT JOIN builds bl ON bl.extension = n.extension AND bl.version = (SELECT version FROM build_versions WHERE n = 1)
+LEFT JOIN builds bp ON bp.extension = n.extension AND bp.version = (SELECT version FROM build_versions WHERE n = 2);
 
 COPY (SELECT * FROM extensions ORDER BY extension)
 TO (getvariable('out') || '/.extensions.parquet.tmp') (FORMAT parquet, COMPRESSION zstd);
@@ -194,6 +212,11 @@ SELECT (SELECT min(w) FROM iso) AS first_week,
        (SELECT count(*) FROM ext_meta) AS extensions_in_repo,
        (SELECT count(DISTINCT owner) FROM extensions WHERE in_repo) AS contributors,
        to_json((SELECT coalesce(list(extension ORDER BY extension), []) FROM extensions WHERE NOT in_repo))::VARCHAR AS unlisted_extensions,
+       to_json({'latest': (SELECT version FROM build_versions WHERE n = 1),
+                'built_latest': (SELECT count(*) FROM extensions WHERE built_latest),
+                'previous': (SELECT version FROM build_versions WHERE n = 2),
+                'built_previous': (SELECT count(*) FROM extensions WHERE built_previous),
+                'checked': (SELECT count(DISTINCT extension) FROM builds)})::VARCHAR AS builds,
        to_json({'weeks': (SELECT count(DISTINCT week_start) FROM core_downloads),
                 'first_week': (SELECT min(printf('%d-W%02d', year, week)) FROM core_downloads),
                 'last_week': (SELECT max(printf('%d-W%02d', year, week)) FROM core_downloads),

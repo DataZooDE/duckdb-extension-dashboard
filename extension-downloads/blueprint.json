@@ -10,12 +10,12 @@
       "question": "Is the extension ecosystem growing, and what's hot?"
     },
     {
-      "file": "extension.sql",
-      "question": "How is one extension doing?"
-    },
-    {
       "file": "rankings.sql",
       "question": "Where does every extension stand?"
+    },
+    {
+      "file": "extension.sql",
+      "question": "How is one extension doing?"
     },
     {
       "file": "contributors.sql",
