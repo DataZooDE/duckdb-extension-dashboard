@@ -92,6 +92,8 @@ FROM (SELECT extension,
 
 -- "(all)" first (the default), then every contributor by last week's
 -- downloads.
+-- Both inputs in one row (an untitled ::GROUP of inputs).
+SELECT ''::GROUP;
 SELECT v AS contributor ::DROPDOWN, l AS contributor_label ::OPTION_LABEL, 'Contributor'::LABEL
 FROM (SELECT 0 AS o, '(all)' AS v, 'All contributors' AS l, NULL::HUGEINT AS d
       UNION ALL
@@ -102,6 +104,7 @@ FROM (SELECT 0 AS o, '(all)' AS v, 'All contributors' AS l, NULL::HUGEINT AS d
 ORDER BY o, d DESC, v;
 
 SELECT '' AS q ::TEXT, 'Search name or description'::LABEL;
+SELECT 1::ENDGROUP;
 
 -- The shown extensions (all, or one contributor's) in the latest week.
 SELECT ''::GROUP;
