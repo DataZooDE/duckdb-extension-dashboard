@@ -229,8 +229,9 @@ LIMIT 12;
 SELECT 'Column guide'::TAB;
 
 -- The glossary of the "All extensions" table: an ::INFO popover shows only
--- plain text in a narrow box, so the definitions live here, one row per
--- column.
+-- plain text in a narrow box, and ::MARKDOWN renders no tables
+-- (anofox-visualization v2026.10.25, anofox-visualization#759), so the
+-- definitions live here, one row per column.
 -- Two tables side by side (rows 1-7, 8-13), so the guide fits one screen.
 CREATE OR REPLACE TEMP VIEW col_guide AS
 SELECT * FROM (VALUES
