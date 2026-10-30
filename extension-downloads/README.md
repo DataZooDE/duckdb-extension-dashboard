@@ -16,6 +16,7 @@ every extension ranks. Built with
 | [`overview.sql`](overview.sql) (home) | Is the extension ecosystem growing, and what's hot? |
 | [`extension.sql`](extension.sql) | How is one extension doing? |
 | [`rankings.sql`](rankings.sql) | Where does every extension stand? |
+| [`stars.sql`](stars.sql) | Do stars and releases go with downloads? |
 
 ## Input (what you must provide)
 
@@ -25,6 +26,9 @@ both written by [`scripts/fetch.sh`](scripts/fetch.sh):
 | File | Shape |
 |---|---|
 | `downloads.parquet` | One row per ISO week and extension: `year`, `week` (ISO), `week_start` (DATE, the ISO Monday), `extension`, `downloads` (BIGINT), `last_update` (TIMESTAMP, UTC: when the site captured that week), `provisional` (BOOLEAN) |
+| `extensions.parquet` | One row per extension: its `description.yml` fields, `owner` (the contributor) and the repo's GitHub `stars`, `forks`, `repo_created`, `repo_pushed`, `archived` and `repo_now` (where GitHub resolves it today) |
+| `releases.parquet` | One row per community release of an extension, from the history of its `description.yml` on main of duckdb/community-extensions (PRs dated at their merge): `extension`, `released_at` (UTC), `week_start`, `version`, `ref`, `commit`, `kind` (`first`: its first listing; `release`: a new `repo.ref`; `bulk`: a new ref from a DuckDB-team commit changing more than 3 extensions) |
+| `stars.parquet` | One row per fetch day and repo: `date`, `repo`, `stars`, `forks`. Each fetch adds that day's snapshot to the history already in the data root: GitHub shows a repo's stargazers with their dates to its admins only, so the history starts with the first fetch (2026-10-30) |
 | `meta.json` | `fetched_at`, the source URLs, the weeks covered, `missing_weeks`, `provisional_weeks`, and `dropped_files` (each file the build left out, with the reason). The dashboards don't read it; it records what the parquet does and doesn't hold |
 
 The numbers are Cloudflare's estimate of `INSTALL` downloads per community
@@ -97,7 +101,8 @@ extension-downloads/scripts/check.sh                      # dashboard --check --
 scripts/serve-locked.sh --blueprint extension-downloads   # http://127.0.0.1:8095/ (home: /d/overview)
 ```
 
-Live data instead of the snapshot (network access, `curl`, about 6 s):
+Live data instead of the snapshot (network access, `curl`, a GitHub token
+for the stars: `GH_TOKEN` or a `gh auth login`; about 30 s):
 
 ```sh
 extension-downloads/scripts/fetch.sh                      # -> extension-downloads/data
@@ -135,8 +140,9 @@ Every page fits a 1920×1080 screen without scrolling.
   is ordered by rank and labelled with rank and downloads.
   - KPIs: last week's downloads, rank, places up or down, share of all
     downloads, and weeks listed.
-  - Weekly downloads with the 4-week median, "No data" bands, and a strip
-    of spike ticks below (hover a tick for the numbers).
+  - Weekly downloads with the 4-week median, "No data" bands, and two tick
+    strips below: spikes (hover for the numbers) and the extension's own
+    releases (hover for the version and merge date; bulk updates left out).
   - Rank over time on a reversed axis.
   - Share of total over time.
   - The neighbours 3 places either side in the latest ranking.
@@ -146,5 +152,21 @@ Every page fits a 1920×1080 screen without scrolling.
     rank they would have as one extension, and their share.
   - One paged table of every extension ever listed: rank, places, a
     highlight flag, last and previous week, change %, 4-week median, a
-    13-week sparkline, first seen, a spike badge, and a link to the
-    extension page.
+    13-week sparkline, releases in the last 90 days, the last release,
+    first seen, a spike badge, and a link to the extension page.
+- **Stars & releases** (`stars.sql`), two tabs. **Stars**:
+  - KPIs: stars on all extension repos, the median per repo, the rank
+    correlation between stars and downloads, the share of the spread in
+    downloads that stars explain (R² of a log-log fit), and the stars gained
+    since the first snapshot.
+  - Stars against weekly downloads (median of the last 4 weeks,
+    spike-corrected) on log scales, coloured by distance from the fit.
+  - The most-starred contributors.
+  - The extensions used far more than starred, and those starred far more
+    than used (at least 50 stars).
+  - **Releases** (maintainer releases; DuckDB-team bulk updates left out):
+    KPIs for the releases in the last 90 days (to the latest capture), the
+    extensions with one, their downloads against the rest, the rise in
+    downloads after a release against other weeks, and the extensions with
+    no release in 12 months; releases per week by kind; median downloads by
+    release count; the most active extensions; and the before/after table.

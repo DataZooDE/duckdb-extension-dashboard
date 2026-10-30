@@ -1,11 +1,13 @@
 {
-  "fetched_at": "2026-10-30T06:40:01Z",
+  "fetched_at": "2026-10-30T20:24:38Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
     "weekly": "https://community-extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json",
     "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
-    "extensions_commit": "845779e73672b9d28420b5a1268df7bf247a0b9d"
+    "extensions_commit": "845779e73672b9d28420b5a1268df7bf247a0b9d",
+    "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
+    "github": "https://api.github.com/graphql (each extension repo's stargazerCount, forkCount and stargazers' starredAt)"
   },
   "what": "Cloudflare's estimate of INSTALL downloads per community extension, all platforms and versions together, per week.",
   "first_week": "2024-W40",
@@ -93,5 +95,84 @@
     "sqlite_scanner",
     "v2.0.0%2Fwindows_amd64%2Fsheetreader",
     "vortex"
-  ]
+  ],
+  "releases": {
+    "extensions": 409,
+    "releases": 2225,
+    "bulk": 75,
+    "first": "2024-06-05",
+    "last": "2026-10-29"
+  },
+  "github": {
+    "repos": 392,
+    "repos_found": 390,
+    "repos_not_found": [
+      "Querio-App/duckdb-jev",
+      "alberttwong/redis-adbc-driver"
+    ],
+    "repos_moved": [
+      {
+        "repo": "Dtenwolde/dutchdb",
+        "now": "Dtenwolde/eenddb"
+      },
+      {
+        "repo": "Query-farm/duckdb-extension-clickhouse-native",
+        "now": "Query-farm/clickhouse-native"
+      },
+      {
+        "repo": "cwida/pac",
+        "now": "cwida/privacy"
+      },
+      {
+        "repo": "dais-polymtl/flock",
+        "now": "dais-labo/flock"
+      },
+      {
+        "repo": "elei-io/ducklake-cdc-extension",
+        "now": "ekkuleivonen/ducklake-cdc-extension"
+      },
+      {
+        "repo": "paleolimbot/duckdb-nanoarrow",
+        "now": "duckdb/duckdb-nanoarrow"
+      },
+      {
+        "repo": "quackscience/duckdb-extension-cronjob",
+        "now": "Query-farm/cronjob"
+      },
+      {
+        "repo": "quackscience/duckdb-extension-openprompt",
+        "now": "Query-farm/openprompt"
+      },
+      {
+        "repo": "quackscience/duckdb-extension-pcap",
+        "now": "Query-farm/pcap"
+      },
+      {
+        "repo": "quackscience/duckdb-extension-pyroscope",
+        "now": "Query-farm/pyroscope"
+      },
+      {
+        "repo": "quackscience/duckdb-extension-redis",
+        "now": "Query-farm/redis"
+      },
+      {
+        "repo": "quackscience/duckdb-extension-tsid",
+        "now": "Query-farm/tsid"
+      },
+      {
+        "repo": "quackscience/duckdb-extension-webmacro",
+        "now": "Query-farm/webmacro"
+      },
+      {
+        "repo": "quackscience/duckdb-quickjs",
+        "now": "Query-farm/quickjs"
+      },
+      {
+        "repo": "sounkou-bioinfo/ducknng",
+        "now": "RGenomicsETL/ducknng"
+      }
+    ],
+    "stars": 9566,
+    "stars_history_from": "2026-10-30"
+  }
 }

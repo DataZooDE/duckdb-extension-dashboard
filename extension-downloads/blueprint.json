@@ -26,6 +26,10 @@
       "question": "How is one contributor doing versus the whole ecosystem?"
     },
     {
+      "file": "stars.sql",
+      "question": "Do stars and releases go with downloads?"
+    },
+    {
       "file": "about.sql",
       "question": "Who made this, and how current is the data?"
     }

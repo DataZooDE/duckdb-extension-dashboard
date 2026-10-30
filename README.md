@@ -18,8 +18,10 @@
 ## What you get
 
 - **The whole ecosystem at a glance:** about 3 million installs a week across more than 370 extensions, with every DuckDB release marked on the timeline.
-- **Any extension in depth:** weekly downloads, rank over time, share of all installs, and its neighbours in the ranking. Pick one from the dropdown, live in your browser.
+- **Any extension in depth:** weekly downloads with the extension's own releases marked, rank over time, share of all installs, and its neighbours in the ranking. Pick one from the dropdown, live in your browser.
 - **Who builds DuckDB's extensions:** more than 200 contributors, ranked, with the top 15 shown raw and spike-corrected side by side.
+- **Stars vs downloads:** every extension repo's GitHub stars against its usage. Stars explain only about a tenth of the spread in downloads, and the page lists the extensions used far more, or far less, than their stars suggest.
+- **Releases vs downloads:** every extension's community releases, from the history of duckdb/community-extensions. Extensions with a release in the last 90 days have about twice the downloads, and downloads rise more after a release than in other weeks.
 - **Honest numbers:** one-off spikes (CI or bot traffic) are flagged and corrected with a Hampel filter. Real growth is kept, confirmed by [anofox-forecast](https://github.com/DataZooDE/anofox-forecast)'s changepoint detection. Missing weeks show as gaps, never as zeros.
 - **Always current:** a GitHub Action fetches the data daily, checks every dashboard, and republishes.
 
@@ -39,6 +41,7 @@
 | [Rankings](https://datazoode.github.io/duckdb-extension-dashboard/d/rankings/) | Where does every extension stand? | [`rankings.sql`](extension-downloads/rankings.sql) |
 | [Contributors](https://datazoode.github.io/duckdb-extension-dashboard/d/contributors/) | Who builds the ecosystem? | [`contributors.sql`](extension-downloads/contributors.sql) |
 | [Contributor](https://datazoode.github.io/duckdb-extension-dashboard/d/contributor/) | How is one contributor doing vs everyone else? | [`contributor.sql`](extension-downloads/contributor.sql) |
+| [Stars & releases](https://datazoode.github.io/duckdb-extension-dashboard/d/stars/) | Do stars and releases go with downloads? | [`stars.sql`](extension-downloads/stars.sql) |
 | [About](https://datazoode.github.io/duckdb-extension-dashboard/d/about/) | Who made this, and how current is the data? | [`about.sql`](extension-downloads/about.sql) |
 
 Every page is **one plain SQL file**. Charts, KPIs, tables and pickers are SQL
@@ -52,6 +55,7 @@ flowchart LR
   A["duckdb.org<br/>weekly download JSON"] --> F
   B["duckdb/community-extensions<br/>description.yml"] --> F
   C["duckdb/duckdb<br/>releases"] --> F
+  G["GitHub API<br/>stars per repo"] --> F
   F["fetch.sh<br/>+ spike correction<br/>(anofox-forecast)"] --> S[("parquet snapshot<br/>committed daily")]
   S --> K{"strict check<br/>+ smoke test"}
   K --> P["GitHub Pages:<br/>anofox-visualization app<br/>(DuckDB-Wasm, pinned)"]
@@ -63,7 +67,7 @@ from the pinned release, next to the parquet snapshot. Your browser runs each
 dashboard's SQL in DuckDB-Wasm, so the pickers re-query instantly.
 [`update.yml`](.github/workflows/update.yml) runs daily at 06:30 UTC:
 
-1. **Fetch:** download the metrics, extension metadata and releases, and add the spike correction.
+1. **Fetch:** download the metrics, extension metadata and release history, DuckDB releases and GitHub stars, and add the spike correction.
 2. **Check:** every dashboard passes `dashboard --check --strict` and a locked-server smoke test on the fresh data.
 3. **Commit:** the snapshot is committed if it changed, so the git log doubles as the data's history.
 4. **Publish:** build the app from the pinned tag and deploy the site.
@@ -76,7 +80,9 @@ Any failure stops the run before anything is published, so the live site keeps t
 |---|---|---|
 | Downloads | [DuckDB's download metrics](https://duckdb.org/community_extensions/download_metrics) | Cloudflare's estimate of `INSTALL` downloads, all platforms and versions together, per week |
 | Extensions and contributors | [duckdb/community-extensions](https://github.com/duckdb/community-extensions) | contributor = the GitHub owner of the extension's repository |
+| Extension releases | the history of each `description.yml` in [duckdb/community-extensions](https://github.com/duckdb/community-extensions) | a release = a new pinned commit (`repo.ref`) merged on main; DuckDB-team bulk updates are kept apart |
 | DuckDB releases | [duckdb/duckdb](https://github.com/duckdb/duckdb/releases) | prereleases excluded |
+| GitHub stars | GitHub's GraphQL API, each extension's `repo.github` | one snapshot per daily fetch, from 2026-10-30 (GitHub has no star history for other people's repos) |
 
 Things to keep in mind:
 - Until **2025-11-10** the site listed only about the top 50 extensions.

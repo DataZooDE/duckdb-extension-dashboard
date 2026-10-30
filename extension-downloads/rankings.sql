@@ -20,6 +20,7 @@ SELECT 'en-GB'::LOCALE;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
+SET VARIABLE f_ext_releases = getvariable('anofox_data') || '/releases.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
 
 CREATE OR REPLACE TEMP VIEW weeks AS
@@ -59,7 +60,7 @@ WHERE trim(l) <> '' AND lower(trim(split_part(l, ',', 1), ' "')) <> 'extension'
 GROUP BY 1;
 
 CREATE OR REPLACE TEMP VIEW ext_owner AS
-SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo
+SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo, e.stars
 FROM read_parquet(getvariable('f_extensions')) e LEFT JOIN user_groups g USING (extension);
 
 -- "(all)" first (the default), then every contributor by last week's
@@ -98,27 +99,38 @@ WITH cur AS (SELECT * FROM ext_weeks WHERE week_start = getvariable('last_ws')),
 prev AS (SELECT * FROM ext_weeks WHERE week_start = getvariable('prev_ws')),
 spark AS (SELECT extension, list(downloads ORDER BY wi) AS last13, any_value(first_seen) AS first_seen
           FROM ext_weeks WHERE wi > (SELECT max(wi) - 13 FROM weeks) GROUP BY extension),
-everyone AS (SELECT extension, any_value(first_seen) AS first_seen FROM ext_weeks GROUP BY extension)
+everyone AS (SELECT extension, any_value(first_seen) AS first_seen FROM ext_weeks GROUP BY extension),
+-- maintainer releases (no DuckDB-team bulk updates) up to the latest capture
+rel AS (SELECT extension,
+               count(*) FILTER (WHERE released_at > (SELECT max(last_update) FROM weeks) - INTERVAL 90 DAY) AS rel90,
+               max(released_at) AS last_rel
+        FROM read_parquet(getvariable('f_ext_releases'))
+        WHERE kind <> 'bulk' AND released_at <= (SELECT max(last_update) FROM weeks)
+        GROUP BY extension)
 SELECT c.rnk AS "Rank" ::PAGED,
        p.rnk - c.rnk AS "Places" ::COLORSCALE_DIVERGING,
        e.extension AS "Extension",
        CASE WHEN o.contributor = 'DataZooDE' THEN '★ DataZooDE' ELSE o.contributor END AS "Contributor",
+       o.stars AS "Stars",
        c.downloads AS "Last week",
        p.downloads AS "Previous week",
        CASE WHEN p.downloads > 0 THEN round(100.0 * (c.downloads / p.downloads - 1)) END AS "Change %" ::PERCENT,
        round(c.med4)::BIGINT AS "4-week median",
        s.last13 AS "Last 13 weeks" ::SPARKLINE,
+       coalesce(r.rel90, 0) AS "Releases (90 d)",
+       strftime(r.last_rel, '%Y-%m-%d') AS "Last release",
        CASE WHEN e.first_seen <= getvariable('full_list_from') THEN 'by ' || strftime(e.first_seen, '%Y-%m-%d')
             ELSE strftime(e.first_seen, '%Y-%m-%d') END AS "First seen",
        CASE WHEN c.spike THEN 'Spike – watch' WHEN c.extension IS NULL THEN 'Not listed' ELSE 'Steady' END AS "Pattern" ::BADGE,
        '/d/extension?v.extension={Extension}' AS "Details" ::LINK,
        CASE WHEN (SELECT flt FROM flt_v) = '(all)' THEN 'Every extension' ELSE 'Extensions of ' || (SELECT flt FROM flt_v) END
          || ', ranked by downloads, 7 days to ' || getvariable('last_label') ::TITLE,
-       'Rank: among all extensions, whatever the filter. Contributor: the GitHub owner of the extension''s repo ("(unlisted)": no longer in the community-extensions repo; ★ marks DataZooDE). Places: previous week''s rank minus this week''s (positive = moved up). 4-week median: this and the previous 3 listed weeks, robust to one-week spikes. Last 13 weeks: the listed weeks among the last 13 with data. First seen: "by" a date in or before 2025-11-10, when the site still listed only about the top 50 extensions (the extension may be older). Spike – watch: more than 5x the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads).'::INFO
+       'Rank: among all extensions, whatever the filter. Contributor: the GitHub owner of the extension''s repo ("(unlisted)": no longer in the community-extensions repo; ★ marks DataZooDE). Stars: the repo''s GitHub stars (shared by extensions in one repo; see the Stars page). Places: previous week''s rank minus this week''s (positive = moved up). 4-week median: this and the previous 3 listed weeks, robust to one-week spikes. Last 13 weeks: the listed weeks among the last 13 with data. First seen: "by" a date in or before 2025-11-10, when the site still listed only about the top 50 extensions (the extension may be older). Releases (90 d) and Last release: new pinned commits (repo.ref) of the extension merged on main of duckdb/community-extensions, up to the latest capture; DuckDB-team bulk updates are not counted. Spike – watch: more than 5x the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads).'::INFO
 FROM everyone e
 LEFT JOIN cur c USING (extension)
 LEFT JOIN prev p USING (extension)
 LEFT JOIN spark s USING (extension)
+LEFT JOIN rel r USING (extension)
 LEFT JOIN ext_owner o USING (extension)
 WHERE (SELECT flt FROM flt_v) = '(all)' OR o.contributor = (SELECT flt FROM flt_v)
 ORDER BY c.rnk NULLS LAST, e.extension;

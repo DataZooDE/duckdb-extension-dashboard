@@ -11,7 +11,15 @@
 #                            language, license, version, repo, owner (the
 #                            contributor: the GitHub org/user of repo.github;
 #                            "(unlisted)" when the repo no longer lists it),
-#                            maintainers, in_repo
+#                            maintainers, in_repo, and the repo's GitHub
+#                            stars, forks, repo_created, repo_pushed,
+#                            archived, repo_now (where GitHub resolves it)
+#   <out>/releases.parquet   one row per community release of an extension:
+#                            extension, released_at, week_start, version,
+#                            ref, commit, kind (first / release / bulk)
+#   <out>/stars.parquet      one row per (fetch day, repo): date, repo, stars,
+#                            forks; today's snapshot is added to the history
+#                            already in <out>
 #   <out>/meta.json          fetched_at, the source URLs and commit, the weeks
 #                            covered, the weeks missing, the unlisted
 #                            extensions, and every file the build dropped or
@@ -38,10 +46,17 @@
 # land on the same ISO week the later `_last_update` wins (the earlier one
 # was a mid-week capture the site later completed). See build.sql.
 #
-# Extension metadata: a shallow, sparse clone of duckdb/community-extensions
-# (only extensions/*/description.yml), parsed by parse-descriptions.py
-# (needs PyYAML) into <raw>/extensions.jsonl, so --from-raw needs neither
-# git nor Python's yaml.
+# Extension metadata: a sparse clone of duckdb/community-extensions with its
+# full history (only extensions/*/description.yml checked out; about 9 MB),
+# parsed by parse-descriptions.py (today's files) and parse-releases.py
+# (every change on main: the releases), both needing PyYAML, into
+# <raw>/extensions.jsonl and <raw>/releases.jsonl, so --from-raw needs
+# neither git nor Python's yaml.
+#
+# GitHub stars: fetch-stars.py asks GitHub's GraphQL API for each repo's
+# stars and forks (8 requests) into <raw>/github/. It needs a token:
+# GH_TOKEN, else `gh auth token`. GitHub has no star history for other
+# people's repos, so stars.parquet grows by one snapshot per fetch day.
 #
 # Environment: DUCKDB (a DuckDB CLI; default `duckdb` on PATH).
 set -euo pipefail
@@ -55,7 +70,7 @@ while [ $# -gt 0 ]; do
     --out) OUT="$2"; shift 2 ;;
     --raw) RAW="$2"; shift 2 ;;
     --from-raw) FROM_RAW="$2"; shift 2 ;;
-    *) sed -n '2,46p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    *) sed -n '2,61p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
   esac
 done
 DUCKDB="${DUCKDB:-duckdb}"
@@ -73,7 +88,7 @@ else
   [ -n "$RAW" ] || RAW="$TMP/raw"
   mkdir -p "$RAW"
   RAW="$(cd "$RAW" && pwd)"
-  rm -rf "${RAW:?}"/weekly "$RAW"/last-week.json "$RAW"/_fetched_at "$RAW"/community-extensions "$RAW"/extensions.jsonl "$RAW"/_extensions_commit
+  rm -rf "${RAW:?}"/weekly "$RAW"/last-week.json "$RAW"/_fetched_at "$RAW"/community-extensions "$RAW"/extensions.jsonl "$RAW"/_extensions_commit "$RAW"/github "$RAW"/releases.jsonl
   mkdir -p "$RAW/weekly"
   date -u +%Y-%m-%dT%H:%M:%SZ >"$RAW/_fetched_at"
   # One "<year> <week as written in the path>" per line.
@@ -102,16 +117,20 @@ else
   curl -fsS --retry 3 --retry-delay 2 -o "$RAW/last-week.json" "$BASE/downloads-last-week.json"
   echo "fetched $(ls "$RAW/weekly" | wc -l) weekly files + downloads-last-week.json into $RAW"
   command -v git >/dev/null || { echo "fetch.sh: git not found" >&2; exit 1; }
-  git clone -q --depth 1 --filter=blob:none --sparse https://github.com/duckdb/community-extensions.git "$RAW/community-extensions"
+  git clone -q --sparse https://github.com/duckdb/community-extensions.git "$RAW/community-extensions"
   git -C "$RAW/community-extensions" sparse-checkout set --no-cone '/extensions/*/description.yml'
   git -C "$RAW/community-extensions" rev-parse HEAD >"$RAW/_extensions_commit"
   python3 "$HERE/parse-descriptions.py" "$RAW/community-extensions" "$RAW/extensions.jsonl"
+  python3 "$HERE/parse-releases.py" "$RAW/community-extensions" "$RAW/releases.jsonl"
   # DuckDB releases (the vertical lines on the weekly charts)
   curl -fsS --retry 3 --retry-delay 2 -o "$RAW/duckdb-releases.json" \
     ${GH_TOKEN:+-H "Authorization: Bearer $GH_TOKEN"} \
     "https://api.github.com/repos/duckdb/duckdb/releases?per_page=100"
+  python3 "$HERE/fetch-stars.py" "$RAW/extensions.jsonl" "$RAW/github"
 fi
 [ -f "$RAW/extensions.jsonl" ] || { echo "fetch.sh: $RAW has no extensions.jsonl (fetched before the metadata step: fetch again)" >&2; exit 1; }
+[ -f "$RAW/releases.jsonl" ] || { echo "fetch.sh: $RAW has no releases.jsonl (fetched before the releases step: fetch again)" >&2; exit 1; }
+[ -f "$RAW/github/repos.jsonl" ] || { echo "fetch.sh: $RAW has no github/repos.jsonl (fetched before the stars step: fetch again)" >&2; exit 1; }
 
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
@@ -120,6 +139,12 @@ q() { printf "'%s'" "${1//\'/\'\'}"; }
 {
   echo "SET VARIABLE raw = $(q "$RAW");"
   echo "SET VARIABLE out = $(q "$OUT");"
+  echo "SET VARIABLE fetched_on = DATE $(q "${FETCHED_AT:0:10}");"
+  if [ -f "$OUT/stars.parquet" ]; then
+    echo "CREATE TEMP TABLE stars_prev AS SELECT date, repo, stars, forks FROM read_parquet($(q "$OUT/stars.parquet"));"
+  else
+    echo "CREATE TEMP TABLE stars_prev (date DATE, repo VARCHAR, stars BIGINT, forks BIGINT);"
+  fi
   cat "$HERE/build.sql"
   echo ".mode json"
   echo ".output $TMP/meta.rows"
@@ -130,7 +155,7 @@ python3 - "$TMP/meta.rows" "$OUT/meta.json" "$FETCHED_AT" "$BASE" "$(cat "$RAW/_
 import json, sys
 rows, out, fetched_at, base, commit = sys.argv[1:]
 m = json.load(open(rows))[0]
-for k in ("missing_weeks", "provisional_weeks", "dropped_files", "unlisted_extensions"):
+for k in ("missing_weeks", "provisional_weeks", "dropped_files", "unlisted_extensions", "github", "releases"):
     m[k] = json.loads(m[k]) if isinstance(m[k], str) else m[k]
 meta = {
     "fetched_at": fetched_at,
@@ -140,6 +165,8 @@ meta = {
         "weekly": f"{base}/download-stats-weekly/{{YEAR}}/{{WEEK}}.json",
         "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
         "extensions_commit": commit,
+        "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
+        "github": "https://api.github.com/graphql (each extension repo's stargazerCount, forkCount and stargazers' starredAt)",
     },
     "what": "Cloudflare's estimate of INSTALL downloads per community extension, all platforms and versions together, per week.",
     "first_week": m["first_week"],
@@ -153,6 +180,8 @@ meta = {
     "extensions_in_repo": m["extensions_in_repo"],
     "contributors": m["contributors"],
     "unlisted_extensions": m["unlisted_extensions"],
+    "releases": m["releases"],
+    "github": m["github"],
 }
 with open(out + ".tmp", "w") as f:
     json.dump(meta, f, indent=2)
@@ -165,6 +194,8 @@ PY
 mv "$OUT/.downloads.spikes.tmp" "$OUT/downloads.parquet"
 rm -f "$OUT/.downloads.parquet.tmp"
 mv "$OUT/.extensions.parquet.tmp" "$OUT/extensions.parquet"
+mv "$OUT/.stars.parquet.tmp" "$OUT/stars.parquet"
+mv "$OUT/.releases.parquet.tmp" "$OUT/releases.parquet"
 mv "$OUT/meta.json.tmp" "$OUT/meta.json"
 # duckdb_releases.parquet: one row per release DAY (non-prereleases; same-day
 # releases of two branches merged, e.g. "v1.5.4 / v1.4.5"); is_minor = an
@@ -173,4 +204,4 @@ if [ -f "$RAW/duckdb-releases.json" ]; then
   "$DUCKDB" -batch :memory: -c "COPY (SELECT published_at::TIMESTAMP::DATE AS published, string_agg(tag_name, ' / ' ORDER BY tag_name DESC) AS versions, bool_or(regexp_matches(tag_name, '^v[0-9]+[.][0-9]+[.]0\$')) AS is_minor FROM read_json('$RAW/duckdb-releases.json', columns := {'tag_name': 'VARCHAR', 'published_at': 'VARCHAR', 'prerelease': 'BOOLEAN'}) WHERE NOT prerelease GROUP BY ALL ORDER BY published) TO '$OUT/.duckdb_releases.parquet.tmp' (FORMAT parquet);"
   mv "$OUT/.duckdb_releases.parquet.tmp" "$OUT/duckdb_releases.parquet"
 fi
-echo "wrote $OUT/downloads.parquet, $OUT/extensions.parquet, $OUT/duckdb_releases.parquet and $OUT/meta.json"
+echo "wrote $OUT/downloads.parquet, $OUT/extensions.parquet, $OUT/stars.parquet, $OUT/releases.parquet, $OUT/duckdb_releases.parquet and $OUT/meta.json"

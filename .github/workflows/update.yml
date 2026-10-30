@@ -51,7 +51,9 @@ jobs:
       - name: Commit the snapshot if it changed
         run: |
           # meta.json's fetched_at changes on every run: commit only when a
-          # data file changed (meta.json then goes along with it)
+          # data file changed (meta.json then goes along with it). The
+          # GitHub-stars history (stars.parquet) gains a day on every run,
+          # so in practice this commits daily.
           if git diff --quiet -- extension-downloads/demo ':!extension-downloads/demo/meta.json'; then
             git checkout -- extension-downloads/demo/meta.json
             echo "no new data"

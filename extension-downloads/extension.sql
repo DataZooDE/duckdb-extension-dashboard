@@ -21,6 +21,7 @@ SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
 SET VARIABLE f_releases = getvariable('anofox_data') || '/duckdb_releases.parquet';
+SET VARIABLE f_ext_releases = getvariable('anofox_data') || '/releases.parquet';
 
 CREATE OR REPLACE TEMP VIEW weeks AS
 SELECT week_start, any_value(year) AS year, any_value(week) AS week,
@@ -51,7 +52,7 @@ WHERE trim(l) <> '' AND lower(trim(split_part(l, ',', 1), ' "')) <> 'extension'
 GROUP BY 1;
 
 CREATE OR REPLACE TEMP VIEW ext_owner AS
-SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo
+SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo, e.stars
 FROM read_parquet(getvariable('f_extensions')) e LEFT JOIN user_groups g USING (extension);
 
 SET VARIABLE last_ws = (SELECT max(week_start) FROM weeks);
@@ -64,7 +65,8 @@ SET VARIABLE last_label = (SELECT strftime(last_update, '%-d %b') FROM weeks WHE
 CREATE OR REPLACE TEMP VIEW sel_v AS SELECT coalesce(nullif(getvariable('extension'), ''),
                             (SELECT extension FROM ext_weeks WHERE week_start = getvariable('last_ws')
                              ORDER BY downloads DESC, extension LIMIT 1)) AS sel;
-CREATE OR REPLACE TEMP VIEW sel_contributor_v AS SELECT coalesce((SELECT contributor FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)), '(unlisted)') AS sel_contributor;
+CREATE OR REPLACE TEMP VIEW sel_contributor_v AS SELECT coalesce((SELECT contributor FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)), '(unlisted)') AS sel_contributor,
+                                                          (SELECT stars FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)) AS sel_stars;
 
 -- Every extension ever listed, the latest week's ranking first (so the
 -- default, the first option, is the top extension); the label carries the
@@ -154,8 +156,9 @@ SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
             WHEN l.series = '4-week median' THEN r.week_start END ::XLINE,
        CASE WHEN l.series = '4-week median' AND l.week_start = fs.week_start THEN fs.label
             WHEN l.series = '4-week median' THEN r.label END ::XLINE_LABEL,
-       'Weekly downloads of ' || (SELECT sel FROM sel_v) || ' (by ' || (SELECT sel_contributor FROM sel_contributor_v) || '), raw and 4-week median' ::TITLE,
-       'INSTALL downloads per weekly capture; shaded weeks have no data (a gap, not a zero). Dashed lines: the first listed week ("listed since" when that is the first published week or the 2025-11-10 listing change) and DuckDB releases, labelled for x.y.0, and a week the extension is not listed in has no point. The 4-week median (this and its previous 3 listed weeks) ignores one-week spikes; the strip below ticks each spike (more than 5x the median of its previous 8 listed weeks, at least 4 of them, and at least 1,000 downloads).'::INFO
+       'Weekly downloads of ' || (SELECT sel FROM sel_v) || ' (by ' || (SELECT sel_contributor FROM sel_contributor_v)
+         || coalesce(', ★ ' || format('{:,}', (SELECT sel_stars FROM sel_contributor_v)), '') || '), raw and 4-week median' ::TITLE,
+       'INSTALL downloads per weekly capture; shaded weeks have no data (a gap, not a zero). Dashed lines: the first listed week ("listed since" when that is the first published week or the 2025-11-10 listing change) and DuckDB releases, labelled for x.y.0, and a week the extension is not listed in has no point. The 4-week median (this and its previous 3 listed weeks) ignores one-week spikes; the Spikes strip below ticks each spike (more than 5x the median of its previous 8 listed weeks, at least 4 of them, and at least 1,000 downloads), the Releases strip each week with a release of this extension in duckdb/community-extensions (a new pinned commit merged; hover for the version and date).'::INFO
 FROM long l
 LEFT JOIN (SELECT g.*, (SELECT max(e.week_start) FROM e WHERE e.week_start < g.gap_from) AS host FROM gaps g) g
   ON g.host = l.week_start
@@ -168,6 +171,27 @@ SELECT week_start ::XAXIS, 'Spikes'::TRACK,
 FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v) AND spike
 UNION ALL
 SELECT NULL, 'Spikes', 'No spike' WHERE NOT EXISTS (SELECT 1 FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v) AND spike)
+ORDER BY 1;
+-- The extension's own releases in the community-extensions repo
+-- (releases.parquet: a new repo.ref merged on main; 'first' = its first
+-- listing there), one tick per week inside the chart's span. DuckDB-team
+-- bulk ref changes (kind 'bulk') are left out: the release lines above
+-- already mark DuckDB versions.
+WITH r AS (
+  SELECT week_start, released_at, kind,
+         coalesce('v' || ltrim(version, 'v'), left(ref, 7)) AS what
+  FROM read_parquet(getvariable('f_ext_releases'))
+  WHERE extension = (SELECT sel FROM sel_v) AND kind <> 'bulk'
+    AND week_start BETWEEN (SELECT min(week_start) FROM weeks) AND getvariable('last_ws'))
+SELECT week_start ::XAXIS, 'Releases'::TRACK,
+       CASE WHEN count(*) = 1 THEN '' ELSE count(*) || ' releases, ' END
+         || string_agg(CASE WHEN kind = 'first' THEN 'first listed ' ELSE '' END || what || ' (' || strftime(released_at, '%-d %b %Y') || ')', ', ' ORDER BY released_at) ::LABEL
+FROM r GROUP BY week_start
+UNION ALL
+SELECT NULL, 'Releases', 'No release in this span' WHERE NOT EXISTS (
+  SELECT 1 FROM read_parquet(getvariable('f_ext_releases'))
+  WHERE extension = (SELECT sel FROM sel_v) AND kind <> 'bulk'
+    AND week_start BETWEEN (SELECT min(week_start) FROM weeks) AND getvariable('last_ws'))
 ORDER BY 1;
 
 -- The neighbours: 3 places either side in the latest week's ranking.

@@ -18,6 +18,22 @@
 --     a gap in the series).
 --   * missing_weeks = every ISO week between the first and the last kept
 --     week with no kept file.
+--   * GitHub stars (fetch-stars.py's github/repos.jsonl): an extension gets
+--     its repo's numbers, so extensions sharing a repo share its stars.
+--   * releases.parquet (parse-releases.py's releases.jsonl: every change of
+--     a description.yml on main, PRs dated at their merge): a release is a
+--     change of the extension's `repo.ref`, the commit DuckDB builds. kind:
+--     'first' = its first ref (listed in the repo), 'release' = a new ref,
+--     'bulk' = a new ref from a commit changing more than 3 extensions at
+--     once (DuckDB-team maintenance: a move to a new DuckDB version, ref
+--     remaps), not a maintainer's release. Changes without a ref (or files
+--     that don't parse) are skipped; a version-only change is no release.
+--   * stars.parquet is a history GitHub can't give us (it lists stargazers
+--     with their dates to repo admins only): one row per (fetch day, repo,
+--     as description.yml spells it). fetch.sh loads the data root's current
+--     stars.parquet into `stars_prev` (empty when there is none); today's
+--     snapshot replaces any earlier one of the same day. So the output is a
+--     pure function of the raw folder and that previous file.
 SET threads = 1;
 
 CREATE TEMP TABLE raw_files AS
@@ -73,16 +89,50 @@ SELECT * FROM read_json(getvariable('raw') || '/extensions.jsonl', format = 'new
                                    maintainers: 'VARCHAR[]'})
 QUALIFY row_number() OVER (PARTITION BY extension ORDER BY dir = extension DESC, dir) = 1;
 
+CREATE TEMP TABLE ce_changes AS
+SELECT * FROM read_json(getvariable('raw') || '/releases.jsonl', format = 'newline_delimited',
+                        columns = {commit: 'VARCHAR', committed_at: 'VARCHAR', dir: 'VARCHAR', name: 'VARCHAR',
+                                   version: 'VARCHAR', ref: 'VARCHAR', files: 'BIGINT'});
+
+CREATE TEMP TABLE releases AS
+SELECT name AS extension, released_at, date_trunc('week', released_at)::DATE AS week_start, version, ref, commit,
+       CASE WHEN prev_ref IS NULL THEN 'first' WHEN files > 3 THEN 'bulk' ELSE 'release' END AS kind
+FROM (SELECT *, replace(committed_at, 'Z', '')::TIMESTAMP AS released_at,
+             lag(ref) OVER (PARTITION BY name ORDER BY committed_at, commit) AS prev_ref
+      FROM ce_changes WHERE ref IS NOT NULL)
+WHERE prev_ref IS NULL OR ref <> prev_ref;
+
+COPY (SELECT * FROM releases ORDER BY extension, released_at, commit)
+TO (getvariable('out') || '/.releases.parquet.tmp') (FORMAT parquet, COMPRESSION zstd);
+
+CREATE TEMP TABLE gh_repos AS
+SELECT * FROM read_json(getvariable('raw') || '/github/repos.jsonl', format = 'newline_delimited',
+                        columns = {repo: 'VARCHAR', found: 'BOOLEAN', name_with_owner: 'VARCHAR', stars: 'BIGINT',
+                                   forks: 'BIGINT', created_at: 'VARCHAR', pushed_at: 'VARCHAR', archived: 'BOOLEAN'});
+
+
 CREATE TEMP TABLE extensions AS
 SELECT n.extension, m.description, m.language, m.license, m.version, m.repo,
        coalesce(m.owner, '(unlisted)') AS owner,
        coalesce(m.maintainers, []::VARCHAR[]) AS maintainers,
-       m.extension IS NOT NULL AS in_repo
+       m.extension IS NOT NULL AS in_repo,
+       g.stars, g.forks,
+       replace(g.created_at, 'Z', '')::TIMESTAMP AS repo_created,
+       replace(g.pushed_at, 'Z', '')::TIMESTAMP AS repo_pushed,
+       g.archived,
+       g.name_with_owner AS repo_now
 FROM (SELECT DISTINCT extension FROM downloads UNION SELECT extension FROM ext_meta) n
-LEFT JOIN ext_meta m USING (extension);
+LEFT JOIN ext_meta m USING (extension)
+LEFT JOIN gh_repos g ON g.repo = m.repo AND g.found;
 
 COPY (SELECT * FROM extensions ORDER BY extension)
 TO (getvariable('out') || '/.extensions.parquet.tmp') (FORMAT parquet, COMPRESSION zstd);
+
+COPY (SELECT date, repo, stars, forks FROM stars_prev WHERE date <> getvariable('fetched_on')
+      UNION ALL
+      SELECT getvariable('fetched_on'), repo, stars, forks FROM gh_repos WHERE found
+      ORDER BY date, repo)
+TO (getvariable('out') || '/.stars.parquet.tmp') (FORMAT parquet, COMPRESSION zstd);
 
 CREATE TEMP TABLE meta AS
 WITH kept AS (SELECT DISTINCT year, week, week_start, last_update, provisional FROM downloads),
@@ -113,4 +163,17 @@ SELECT (SELECT min(w) FROM iso) AS first_week,
                 FROM dropped))::VARCHAR AS dropped_files,
        (SELECT count(*) FROM ext_meta) AS extensions_in_repo,
        (SELECT count(DISTINCT owner) FROM extensions WHERE in_repo) AS contributors,
-       to_json((SELECT coalesce(list(extension ORDER BY extension), []) FROM extensions WHERE NOT in_repo))::VARCHAR AS unlisted_extensions;
+       to_json((SELECT coalesce(list(extension ORDER BY extension), []) FROM extensions WHERE NOT in_repo))::VARCHAR AS unlisted_extensions,
+       to_json({'extensions': (SELECT count(DISTINCT extension) FROM releases),
+                'releases': (SELECT count(*) FROM releases WHERE kind = 'release'),
+                'bulk': (SELECT count(*) FROM releases WHERE kind = 'bulk'),
+                'first': (SELECT strftime(min(released_at), '%Y-%m-%d') FROM releases),
+                'last': (SELECT strftime(max(released_at), '%Y-%m-%d') FROM releases)})::VARCHAR AS releases,
+       to_json({'repos': (SELECT count(*) FROM gh_repos),
+                'repos_found': (SELECT count(*) FROM gh_repos WHERE found),
+                'repos_not_found': (SELECT coalesce(list(repo ORDER BY repo), []) FROM gh_repos WHERE NOT found),
+                'repos_moved': (SELECT coalesce(list({'repo': repo, 'now': name_with_owner} ORDER BY repo), [])
+                                FROM gh_repos WHERE found AND lower(name_with_owner) <> lower(repo)),
+                'stars': (SELECT sum(stars) FROM gh_repos WHERE found),
+                'stars_history_from': (SELECT strftime(min(d), '%Y-%m-%d')
+                                       FROM (SELECT min(date) AS d FROM stars_prev UNION ALL SELECT getvariable('fetched_on')))})::VARCHAR AS github;

@@ -1,8 +1,9 @@
 # Provenance of the demo snapshot
 
-`downloads.parquet`, `extensions.parquet` and `meta.json` in this folder are
-a snapshot of DuckDB's public community-extension download metrics and of
-the extensions' own metadata, written by
+`downloads.parquet`, `extensions.parquet`, `stars.parquet` and `meta.json`
+in this folder are a snapshot of DuckDB's public community-extension
+download metrics, of the extensions' own metadata and of their repos'
+GitHub stars, written by
 [`../scripts/fetch.sh`](../scripts/fetch.sh) and committed so the checks and
 CI run without the network.
 
@@ -31,6 +32,33 @@ case-folded to the most common one (`Query-farm` → `query-farm`).
 
 The maintainer handles are public GitHub user names that their owners
 published in the repo themselves.
+
+## Releases (`releases.parquet`)
+
+`scripts/parse-releases.py` reads main's first-parent history of every
+`extensions/<name>/description.yml` in duckdb/community-extensions (a full
+clone, about 9 MB), so a PR counts once, dated when it was merged. A
+release is a change of `repo.ref`, the commit DuckDB builds; a change of
+`version` alone is not. `kind`: `first` (the extension's first ref),
+`release`, or `bulk` (a commit changing more than 3 extensions at once:
+DuckDB-team maintenance such as moving every extension to a new DuckDB
+version). DuckDB also rebuilds every extension for each DuckDB release
+without a commit; those builds are not in this file.
+
+## GitHub stars (`extensions.parquet` → `stars`, `stars.parquet`)
+
+`scripts/fetch-stars.py` asks GitHub's GraphQL API for each repo named in a
+`description.yml` (`stargazerCount`, `forkCount`, `createdAt`, `pushedAt`,
+`isArchived`, and `nameWithOwner`: renamed or moved repos redirect, and
+`repo_now` records where to). Extensions sharing a repo share its stars.
+Repos GitHub can't resolve are listed in `meta.json` → `github.repos_not_found`.
+
+`stars.parquet` holds one snapshot per fetch day, starting 2026-10-30. There
+is no earlier history: GitHub lists a repo's stargazers with the date of
+each star only to the repo's admins, so stars can't be dated after the fact.
+Each fetch adds its day to the file already in the data root. The build
+stays deterministic, because the same raw folder and the same previous
+`stars.parquet` give the same output.
 
 ## What the numbers are
 

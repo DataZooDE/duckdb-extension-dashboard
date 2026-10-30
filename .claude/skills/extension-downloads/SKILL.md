@@ -12,9 +12,14 @@ dashboards share.
 
 ## Data path
 
-`scripts/fetch.sh` (curl, `xargs -P 8`) → raw JSON → `scripts/build.sql`
-(pure DuckDB, `threads = 1`) → `<root>/downloads.parquet` + `meta.json`,
-published by rename. `--raw DIR` keeps the JSON and `--from-raw DIR`
+`scripts/fetch.sh` (curl, `xargs -P 8`; `fetch-stars.py` for the GitHub
+stars, which needs `GH_TOKEN` or `gh auth token`) → raw JSON →
+`scripts/build.sql` (pure DuckDB, `threads = 1`) → `<root>/downloads.parquet`,
+`extensions.parquet` (with `stars`), `releases.parquet` (parse-releases.py:
+the description.yml history on main; a new `repo.ref` = a release),
+`stars.parquet` (one snapshot per fetch
+day, appended to the root's previous file) + `meta.json`, published by
+rename. `--raw DIR` keeps the JSON and `--from-raw DIR`
 rebuilds offline with byte-identical output (check with `cmp` against
 `demo/` after any build.sql change). `demo/` is the committed snapshot.
 `scripts/copy-demo.sh` (prepare) copies it to `data/`.
@@ -55,12 +60,16 @@ The setup layer is identical in all three files, copied rather than shared
 | extension.sql | `::DROPDOWN` | Picker (ordered by rank, `::OPTION_LABEL` with rank and downloads) |
 | extension.sql | `''::GROUP` | KPI strip (5 tiles, each `FROM (SELECT 1) one LEFT JOIN …` so it keeps one row when the extension isn't listed) |
 | extension.sql | `'Spikes'::TRACK` | Spike tick strip under the weekly chart |
+| extension.sql | `'Releases'::TRACK` | Release tick strip (releases.parquet, `kind <> 'bulk'`, inside the chart's span; one `NULL`-x row when there is none) |
 | extension.sql | `Neighbours in the ranking` | ±3 places table |
 | extension.sql | `'reverse'::YSCALE` | Rank over time |
 | extension.sql | `Share of all downloads,` | Share over time |
 | rankings.sql | `::TEXT` | Highlight input |
 | rankings.sql | `''::GROUP` | Highlight KPIs |
 | rankings.sql | `::PAGED` | The full ranking |
+| stars.sql | `TEMP VIEW fit` | The log-log fit log10(usage) ~ log10(stars), which the KPIs, scatter colours and both tables use |
+| stars.sql | `TEMP VIEW ext_act` / `TEMP VIEW around` | Releases tab: per-extension releases in the 90 days to the latest capture, and the 4-weeks-after vs before comparison (release weeks vs other weeks) |
+| stars.sql | `::SCATTER` | Stars vs downloads. No `::LINK`: a scatter's link gets only `{value}` (the x), and `{column}` stays empty |
 
 ## Recipes
 

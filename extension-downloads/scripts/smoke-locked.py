@@ -40,6 +40,7 @@ cases = [
     ("rankings", {"highlight": "no-such-extension"}),
     ("contributors", {}),
     ("contributor", {}),
+    ("stars", {}),
     ("about", {}),
 ]
 if a.unlisted:
