@@ -185,7 +185,7 @@ SELECT c.rnk AS "Rank" ::PAGED,
        CASE WHEN (SELECT flt FROM flt_v) = '(all)' THEN 'Every extension' ELSE 'Extensions of ' || (SELECT flt FROM flt_v) END
          || CASE WHEN (SELECT q FROM q_v) = '' THEN '' ELSE ' matching "' || (SELECT q FROM q_v) || '"' END
          || ', ranked by downloads, 7 days to ' || getvariable('last_label') ::TITLE,
-       'Rank: among all extensions, whatever the filter. Contributor: the GitHub owner of the extension''s repo ("(unlisted)": no longer in the community-extensions repo; ★ marks DataZooDE). Stars: the repo''s GitHub stars (shared by extensions in one repo; see the Stars page). Places: previous week''s rank minus this week''s (positive = moved up). 4-week median: this and the previous 3 listed weeks, robust to one-week spikes. Trend %: the median of the last 4 weeks with data against the 4 weeks 8 weeks earlier (weeks 9-12 back), spike-corrected; empty below 100 downloads before or with fewer than 3 listed weeks in a window. Last 13 weeks: the listed weeks among the last 13 with data. First seen: "by" a date in or before 2025-11-10, when the site still listed only about the top 50 extensions (the extension may be older). Maintenance: Active (built for the current DuckDB, and a commit or release in the last 90 days), Mature (built, no recent activity: finished, not abandoned), Not built – risk (no linux_amd64 binary for the newest DuckDB release or the newest of the minor line before it), Archived (on GitHub), Not in repo (moved to core or removed). On newest DuckDB: a binary for the newest DuckDB release (' || coalesce((SELECT any_value(duckdb_latest) FROM ext_health), '?') || '). Releases (90 d) and Last release: new pinned commits (repo.ref) of the extension merged on main of duckdb/community-extensions, up to the latest capture; DuckDB-team bulk updates are not counted. Spike – watch: more than 5x the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads).'::INFO
+       'One row per extension ever listed, ranked by last week''s downloads; the contributor and search filters above apply. What each column means: the Column guide tab.'::INFO
 FROM everyone e
 LEFT JOIN cur c USING (extension)
 LEFT JOIN prev p USING (extension)
@@ -225,3 +225,38 @@ LEFT JOIN (SELECT extension, list(downloads ORDER BY wi) AS last13 FROM ext_week
 WHERE t.trend_pct IS NOT NULL AND t.now4 >= 500 AND t.extension IN (SELECT extension FROM shown_v)
 ORDER BY t.now4 / t.prev4 DESC, t.extension
 LIMIT 12;
+
+SELECT 'Column guide'::TAB;
+
+-- The glossary of the "All extensions" table: an ::INFO popover shows only
+-- plain text in a narrow box, so the definitions live here, one row per
+-- column.
+-- Two tables side by side (rows 1-7, 8-13), so the guide fits one screen.
+CREATE OR REPLACE TEMP VIEW col_guide AS
+SELECT * FROM (VALUES
+  (1, 'Rank', 'Rank by downloads in the latest week, among all extensions, whatever the filters.'),
+  (2, 'Places', 'Previous week''s rank minus this week''s: positive = moved up.'),
+  (3, 'Contributor', 'The GitHub owner of the extension''s repo. (unlisted): no longer in the community-extensions repo. ★ marks DataZooDE.'),
+  (4, 'Stars', 'The repo''s GitHub stars; extensions sharing a repo share them (see Stars & releases).'),
+  (5, 'Last week · Previous week · Change %', 'INSTALL downloads in the latest weekly capture and the one before, and the change.'),
+  (6, '4-week median', 'This and the previous 3 listed weeks: robust to one-week spikes.'),
+  (7, 'Trend %', 'Median of the last 4 weeks with data against the 4 weeks 8 weeks earlier (weeks 9–12 back), spike-corrected. Empty below 100 downloads before, or with fewer than 3 listed weeks in a window.'),
+  (8, 'Last 13 weeks', 'The listed weeks among the last 13 with data.'),
+  (9, 'Maintenance', 'Active: built for the current DuckDB, and a commit or release in the last 90 days. Mature: built, no recent activity (finished, not abandoned). Not built – risk: no linux_amd64 binary for the newest DuckDB release or the newest of the minor line before it. Archived: archived on GitHub. Not in repo: moved into core or removed.'),
+  (10, 'On newest DuckDB', '✓ when a linux_amd64 binary exists for the newest DuckDB release (' || coalesce((SELECT any_value(duckdb_latest) FROM ext_health), '?') || ').'),
+  (11, 'Releases (90 d) · Last release', 'New pinned commits (repo.ref) merged on main of duckdb/community-extensions, up to the latest capture; DuckDB-team bulk updates are not counted.'),
+  (12, 'First seen', 'The first week the extension is listed; "by" a date up to 2025-11-10, when the site listed only about the top 50 (the extension may be older).'),
+  (13, 'Pattern', 'Spike – watch: the latest week is more than 5× the median of its previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads). Steady: otherwise. Not listed: not in the latest week.')
+) t(o, col, what);
+
+SELECT 6::COL;
+SELECT 'none'::TOOLBAR;
+SELECT 'none'::TOTALS;
+SELECT col AS "Column" ::TABLE, what AS "What it means", 'What the columns of "All extensions" mean'::TITLE
+FROM col_guide WHERE o <= 7 ORDER BY o;
+
+SELECT 6::COL;
+SELECT 'none'::TOOLBAR;
+SELECT 'none'::TOTALS;
+SELECT col AS "Column" ::TABLE, what AS "What it means", '… continued'::TITLE
+FROM col_guide WHERE o > 7 ORDER BY o;
