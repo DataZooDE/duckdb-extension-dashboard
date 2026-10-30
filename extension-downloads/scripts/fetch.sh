@@ -14,6 +14,9 @@
 #                            maintainers, in_repo, and the repo's GitHub
 #                            stars, forks, repo_created, repo_pushed,
 #                            archived, repo_now (where GitHub resolves it)
+#   <out>/core_downloads.parquet  DuckDB's core extensions (httpfs, json, ...)
+#                            in the same shape as downloads.parquet, from
+#                            extensions.duckdb.org (same rules; from 2025)
 #   <out>/releases.parquet   one row per community release of an extension:
 #                            extension, released_at, week_start, version,
 #                            ref, commit, kind (first / release / bulk)
@@ -53,6 +56,10 @@
 # <raw>/extensions.jsonl and <raw>/releases.jsonl, so --from-raw needs
 # neither git nor Python's yaml.
 #
+# Core extensions: extensions.duckdb.org publishes the same files
+# (downloads-last-week.json, download-stats-weekly/{YEAR}/{WEEK}.json) for
+# DuckDB's own extensions, from 2025; fetched the same way into <raw>/core/.
+#
 # GitHub stars: fetch-stars.py asks GitHub's GraphQL API for each repo's
 # stars and forks (8 requests) into <raw>/github/. It needs a token:
 # GH_TOKEN, else `gh auth token`. GitHub has no star history for other
@@ -77,6 +84,7 @@ DUCKDB="${DUCKDB:-duckdb}"
 command -v "$DUCKDB" >/dev/null || { echo "fetch.sh: DuckDB CLI not found (set DUCKDB)" >&2; exit 1; }
 
 BASE="https://community-extensions.duckdb.org"
+CORE_BASE="https://extensions.duckdb.org"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -88,8 +96,8 @@ else
   [ -n "$RAW" ] || RAW="$TMP/raw"
   mkdir -p "$RAW"
   RAW="$(cd "$RAW" && pwd)"
-  rm -rf "${RAW:?}"/weekly "$RAW"/last-week.json "$RAW"/_fetched_at "$RAW"/community-extensions "$RAW"/extensions.jsonl "$RAW"/_extensions_commit "$RAW"/github "$RAW"/releases.jsonl
-  mkdir -p "$RAW/weekly"
+  rm -rf "${RAW:?}"/weekly "$RAW"/last-week.json "$RAW"/_fetched_at "$RAW"/community-extensions "$RAW"/extensions.jsonl "$RAW"/_extensions_commit "$RAW"/github "$RAW"/releases.jsonl "$RAW"/core "$RAW"/errors
+  mkdir -p "$RAW/weekly" "$RAW/core/weekly"
   date -u +%Y-%m-%dT%H:%M:%SZ >"$RAW/_fetched_at"
   # One "<year> <week as written in the path>" per line.
   for y in $(seq 2024 "$(date -u +%Y)"); do
@@ -98,6 +106,8 @@ else
       [ "$w" -lt 10 ] && echo "$y 0$w"
     done
   done >"$TMP/paths"
+  # The core files start in 2025.
+  grep -v '^2024 ' "$TMP/paths" >"$TMP/core_paths"
   # curl -w prints the status; 200 keeps the file, 404 drops it, anything
   # else is recorded as an error and fails the fetch below.
   xargs -P 8 -L 1 sh -c '
@@ -109,12 +119,23 @@ else
       *) rm -f "$f"; echo "$2/$3 $code" >>"$0/errors" ;;
     esac
   ' "$RAW" "$BASE" <"$TMP/paths"
+  xargs -P 8 -L 1 sh -c '
+    f="$0/weekly/$2_$3.json"
+    code=$(curl -sS --retry 3 --retry-delay 2 -o "$f" -w "%{http_code}" "$1/download-stats-weekly/$2/$3.json") || code=curl
+    case "$code" in
+      200) ;;
+      404) rm -f "$f" ;;
+      *) rm -f "$f"; echo "core $2/$3 $code" >>"$0/../errors" ;;
+    esac
+  ' "$RAW/core" "$CORE_BASE" <"$TMP/core_paths"
   if [ -s "$RAW/errors" ]; then
     echo "fetch.sh: some weekly files failed (not 200/404):" >&2
     cat "$RAW/errors" >&2
     exit 1
   fi
   curl -fsS --retry 3 --retry-delay 2 -o "$RAW/last-week.json" "$BASE/downloads-last-week.json"
+  curl -fsS --retry 3 --retry-delay 2 -o "$RAW/core/last-week.json" "$CORE_BASE/downloads-last-week.json"
+  echo "fetched $(ls "$RAW/core/weekly" | wc -l) core weekly files + downloads-last-week.json into $RAW/core"
   echo "fetched $(ls "$RAW/weekly" | wc -l) weekly files + downloads-last-week.json into $RAW"
   command -v git >/dev/null || { echo "fetch.sh: git not found" >&2; exit 1; }
   git clone -q --sparse https://github.com/duckdb/community-extensions.git "$RAW/community-extensions"
@@ -129,6 +150,7 @@ else
   python3 "$HERE/fetch-stars.py" "$RAW/extensions.jsonl" "$RAW/github"
 fi
 [ -f "$RAW/extensions.jsonl" ] || { echo "fetch.sh: $RAW has no extensions.jsonl (fetched before the metadata step: fetch again)" >&2; exit 1; }
+[ -f "$RAW/core/last-week.json" ] || { echo "fetch.sh: $RAW has no core/last-week.json (fetched before the core step: fetch again)" >&2; exit 1; }
 [ -f "$RAW/releases.jsonl" ] || { echo "fetch.sh: $RAW has no releases.jsonl (fetched before the releases step: fetch again)" >&2; exit 1; }
 [ -f "$RAW/github/repos.jsonl" ] || { echo "fetch.sh: $RAW has no github/repos.jsonl (fetched before the stars step: fetch again)" >&2; exit 1; }
 
@@ -151,11 +173,11 @@ q() { printf "'%s'" "${1//\'/\'\'}"; }
   echo "SELECT * FROM meta;"
 } >"$TMP/build.sql"
 "$DUCKDB" -batch -bail :memory: <"$TMP/build.sql"
-python3 - "$TMP/meta.rows" "$OUT/meta.json" "$FETCHED_AT" "$BASE" "$(cat "$RAW/_extensions_commit")" <<'PY'
+python3 - "$TMP/meta.rows" "$OUT/meta.json" "$FETCHED_AT" "$BASE" "$(cat "$RAW/_extensions_commit")" "$CORE_BASE" <<'PY'
 import json, sys
-rows, out, fetched_at, base, commit = sys.argv[1:]
+rows, out, fetched_at, base, commit, core_base = sys.argv[1:]
 m = json.load(open(rows))[0]
-for k in ("missing_weeks", "provisional_weeks", "dropped_files", "unlisted_extensions", "github", "releases"):
+for k in ("missing_weeks", "provisional_weeks", "dropped_files", "unlisted_extensions", "github", "releases", "core"):
     m[k] = json.loads(m[k]) if isinstance(m[k], str) else m[k]
 meta = {
     "fetched_at": fetched_at,
@@ -165,6 +187,7 @@ meta = {
         "weekly": f"{base}/download-stats-weekly/{{YEAR}}/{{WEEK}}.json",
         "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
         "extensions_commit": commit,
+        "core": f"{core_base}/download-stats-weekly/{{YEAR}}/{{WEEK}}.json (DuckDB's core extensions, same format)",
         "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
         "github": "https://api.github.com/graphql (each extension repo's stargazerCount, forkCount and stargazers' starredAt)",
     },
@@ -181,6 +204,7 @@ meta = {
     "contributors": m["contributors"],
     "unlisted_extensions": m["unlisted_extensions"],
     "releases": m["releases"],
+    "core": m["core"],
     "github": m["github"],
 }
 with open(out + ".tmp", "w") as f:
@@ -196,6 +220,7 @@ rm -f "$OUT/.downloads.parquet.tmp"
 mv "$OUT/.extensions.parquet.tmp" "$OUT/extensions.parquet"
 mv "$OUT/.stars.parquet.tmp" "$OUT/stars.parquet"
 mv "$OUT/.releases.parquet.tmp" "$OUT/releases.parquet"
+mv "$OUT/.core_downloads.parquet.tmp" "$OUT/core_downloads.parquet"
 mv "$OUT/meta.json.tmp" "$OUT/meta.json"
 # duckdb_releases.parquet: one row per release DAY (non-prereleases; same-day
 # releases of two branches merged, e.g. "v1.5.4 / v1.4.5"); is_minor = an
@@ -204,4 +229,4 @@ if [ -f "$RAW/duckdb-releases.json" ]; then
   "$DUCKDB" -batch :memory: -c "COPY (SELECT published_at::TIMESTAMP::DATE AS published, string_agg(tag_name, ' / ' ORDER BY tag_name DESC) AS versions, bool_or(regexp_matches(tag_name, '^v[0-9]+[.][0-9]+[.]0\$')) AS is_minor FROM read_json('$RAW/duckdb-releases.json', columns := {'tag_name': 'VARCHAR', 'published_at': 'VARCHAR', 'prerelease': 'BOOLEAN'}) WHERE NOT prerelease GROUP BY ALL ORDER BY published) TO '$OUT/.duckdb_releases.parquet.tmp' (FORMAT parquet);"
   mv "$OUT/.duckdb_releases.parquet.tmp" "$OUT/duckdb_releases.parquet"
 fi
-echo "wrote $OUT/downloads.parquet, $OUT/extensions.parquet, $OUT/stars.parquet, $OUT/releases.parquet, $OUT/duckdb_releases.parquet and $OUT/meta.json"
+echo "wrote $OUT/downloads.parquet, $OUT/extensions.parquet, $OUT/stars.parquet, $OUT/releases.parquet, $OUT/core_downloads.parquet, $OUT/duckdb_releases.parquet and $OUT/meta.json"

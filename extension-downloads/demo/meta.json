@@ -1,11 +1,12 @@
 {
-  "fetched_at": "2026-10-30T20:24:38Z",
+  "fetched_at": "2026-10-30T21:00:09Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
     "weekly": "https://community-extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json",
     "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
     "extensions_commit": "845779e73672b9d28420b5a1268df7bf247a0b9d",
+    "core": "https://extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json (DuckDB's core extensions, same format)",
     "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
     "github": "https://api.github.com/graphql (each extension repo's stargazerCount, forkCount and stargazers' starredAt)"
   },
@@ -103,6 +104,12 @@
     "first": "2024-06-05",
     "last": "2026-10-29"
   },
+  "core": {
+    "weeks": 49,
+    "first_week": "2025-W39",
+    "last_week": "2026-W44",
+    "extensions": 44
+  },
   "github": {
     "repos": 392,
     "repos_found": 390,
@@ -172,7 +179,7 @@
         "now": "RGenomicsETL/ducknng"
       }
     ],
-    "stars": 9566,
+    "stars": 9568,
     "stars_history_from": "2026-10-30"
   }
 }

@@ -17,8 +17,9 @@
 
 ## What you get
 
+- **Community vs core:** DuckDB's own extensions (httpfs, json, …) next to the community ones, week by week; community is about a tenth of all extension downloads and grows faster.
 - **The whole ecosystem at a glance:** about 3 million installs a week across more than 370 extensions, with every DuckDB release marked on the timeline.
-- **Any extension in depth:** weekly downloads with the extension's own releases marked, rank over time, share of all installs, and its neighbours in the ranking. Pick one from the dropdown, live in your browser.
+- **Any extension in depth:** weekly downloads with the extension's own releases marked, rank over time, share of all installs, a maintenance card (last commit, last release, open issues), its neighbours in the ranking, and a side-by-side comparison with any other extension. Pick one from the dropdown, live in your browser.
 - **Who builds DuckDB's extensions:** more than 200 contributors, ranked, with the top 15 shown raw and spike-corrected side by side.
 - **Stars vs downloads:** every extension repo's GitHub stars against its usage. Stars explain only about a tenth of the spread in downloads, and the page lists the extensions used far more, or far less, than their stars suggest.
 - **Releases vs downloads:** every extension's community releases, from the history of duckdb/community-extensions. Extensions with a release in the last 90 days have about twice the downloads, and downloads rise more after a release than in other weeks.
@@ -38,7 +39,7 @@
 |---|---|---|
 | [Overview](https://datazoode.github.io/duckdb-extension-dashboard/) | Is the ecosystem growing, and what's hot? | [`overview.sql`](extension-downloads/overview.sql) |
 | [Extension](https://datazoode.github.io/duckdb-extension-dashboard/d/extension/) | How is one extension doing? | [`extension.sql`](extension-downloads/extension.sql) |
-| [Rankings](https://datazoode.github.io/duckdb-extension-dashboard/d/rankings/) | Where does every extension stand? | [`rankings.sql`](extension-downloads/rankings.sql) |
+| [Rankings](https://datazoode.github.io/duckdb-extension-dashboard/d/rankings/) | Where does every extension stand, and what is trending? Search by name or description. | [`rankings.sql`](extension-downloads/rankings.sql) |
 | [Contributors](https://datazoode.github.io/duckdb-extension-dashboard/d/contributors/) | Who builds the ecosystem? | [`contributors.sql`](extension-downloads/contributors.sql) |
 | [Contributor](https://datazoode.github.io/duckdb-extension-dashboard/d/contributor/) | How is one contributor doing vs everyone else? | [`contributor.sql`](extension-downloads/contributor.sql) |
 | [Stars & releases](https://datazoode.github.io/duckdb-extension-dashboard/d/stars/) | Do stars and releases go with downloads? | [`stars.sql`](extension-downloads/stars.sql) |
@@ -79,10 +80,11 @@ Any failure stops the run before anything is published, so the live site keeps t
 | | Source | Note |
 |---|---|---|
 | Downloads | [DuckDB's download metrics](https://duckdb.org/community_extensions/download_metrics) | Cloudflare's estimate of `INSTALL` downloads, all platforms and versions together, per week |
+| Core extension downloads | the same files on `extensions.duckdb.org` | DuckDB's own extensions, from 2025-W39 (continuous from 2025-12-01) |
 | Extensions and contributors | [duckdb/community-extensions](https://github.com/duckdb/community-extensions) | contributor = the GitHub owner of the extension's repository |
 | Extension releases | the history of each `description.yml` in [duckdb/community-extensions](https://github.com/duckdb/community-extensions) | a release = a new pinned commit (`repo.ref`) merged on main; DuckDB-team bulk updates are kept apart |
 | DuckDB releases | [duckdb/duckdb](https://github.com/duckdb/duckdb/releases) | prereleases excluded |
-| GitHub stars | GitHub's GraphQL API, each extension's `repo.github` | one snapshot per daily fetch, from 2026-10-30 (GitHub has no star history for other people's repos) |
+| GitHub stars and maintenance | GitHub's GraphQL API, each extension's `repo.github` (stars, forks, open issues, last commit) | one snapshot per daily fetch, from 2026-10-30 (GitHub has no star history for other people's repos) |
 
 Things to keep in mind:
 - Until **2025-11-10** the site listed only about the top 50 extensions.

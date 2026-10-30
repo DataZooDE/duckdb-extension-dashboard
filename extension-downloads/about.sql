@@ -82,10 +82,10 @@ Built only with [anofox-visualization](https://github.com/DataZooDE/anofox-visua
 SELECT 4::COL;
 SELECT '### Where the numbers come from
 
-- **Downloads**: DuckDB''s [download metrics](https://duckdb.org/community_extensions/download_metrics), **Cloudflare''s estimate of `INSTALL` downloads**, all platforms and DuckDB versions together, one file per week.
+- **Downloads**: DuckDB''s [download metrics](https://duckdb.org/community_extensions/download_metrics), **Cloudflare''s estimate of `INSTALL` downloads**, all platforms and DuckDB versions together, one file per week; the same files for DuckDB''s core extensions from extensions.duckdb.org.
 - **Contributors** and **extension releases**: each extension''s `description.yml` in [duckdb/community-extensions](https://github.com/duckdb/community-extensions); the owner of its repository, and every new pinned commit merged on main.
 - **Releases**: [duckdb/duckdb](https://github.com/duckdb/duckdb/releases), excluding prereleases.
-- **Stars and forks**: each extension repo''s counts from [GitHub''s GraphQL API](https://docs.github.com/en/graphql), one snapshot per daily fetch (since 2026-10-30; GitHub gives no star history).'::MARKDOWN,
+- **Stars, issues, last commit**: each extension repo''s numbers from [GitHub''s GraphQL API](https://docs.github.com/en/graphql), one snapshot per daily fetch (since 2026-10-30; GitHub gives no star history).'::MARKDOWN,
        'note'::CALLOUT;
 
 SELECT 4::COL;
@@ -113,6 +113,8 @@ FROM (
   SELECT 3, 'community-extensions commit', m.sources.extensions_commit FROM m
   UNION ALL
   SELECT 4, 'GitHub repos not found', array_to_string(m.github.repos_not_found, ', ') FROM m
+  UNION ALL
+  SELECT 4.2, 'Core extension downloads', m.core.weeks || ' weeks (' || m.core.first_week || ' to ' || m.core.last_week || '), ' || m.core.extensions || ' extensions' FROM m
   UNION ALL
   SELECT 4.5, 'Extension releases', m.releases.releases || ' releases of ' || m.releases.extensions || ' extensions, '
          || m.releases.first || ' to ' || m.releases.last || ' (plus ' || m.releases.bulk || ' DuckDB-team bulk updates)' FROM m

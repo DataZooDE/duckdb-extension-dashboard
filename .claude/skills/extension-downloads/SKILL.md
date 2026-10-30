@@ -15,7 +15,9 @@ dashboards share.
 `scripts/fetch.sh` (curl, `xargs -P 8`; `fetch-stars.py` for the GitHub
 stars, which needs `GH_TOKEN` or `gh auth token`) → raw JSON →
 `scripts/build.sql` (pure DuckDB, `threads = 1`) → `<root>/downloads.parquet`,
-`extensions.parquet` (with `stars`), `releases.parquet` (parse-releases.py:
+`extensions.parquet` (with `stars`, `open_issues`, `last_commit`),
+`core_downloads.parquet` (extensions.duckdb.org: DuckDB's core extensions,
+same rules), `releases.parquet` (parse-releases.py:
 the description.yml history on main; a new `repo.ref` = a release),
 `stars.parquet` (one snapshot per fetch
 day, appended to the root's previous file) + `meta.json`, published by
@@ -56,6 +58,7 @@ The setup layer is identical in all three files, copied rather than shared
 | overview.sql | `Total weekly downloads` | Total, raw + 4-week median, "No data" bands (`gaps` CTE), coverage `::XLINE`, provisional `::ANNOTATE` |
 | overview.sql | `'Top 20` | Top 20, `::BARCHART_STACKED` by Spike/Steady (one category per bar, so stacking gives full-width bars) |
 | overview.sql | `Biggest movers` | Movers table |
+| overview.sql | `TEMP VIEW both_weeks` | Core vs community tab (set up before the first `::TAB`: the browser app runs `SET VARIABLE`s before a tab's views) |
 | overview.sql | `New extensions` | Newcomers table |
 | extension.sql | `::DROPDOWN` | Picker (ordered by rank, `::OPTION_LABEL` with rank and downloads) |
 | extension.sql | `''::GROUP` | KPI strip (5 tiles, each `FROM (SELECT 1) one LEFT JOIN …` so it keeps one row when the extension isn't listed) |
@@ -67,6 +70,10 @@ The setup layer is identical in all three files, copied rather than shared
 | rankings.sql | `::TEXT` | Highlight input |
 | rankings.sql | `''::GROUP` | Highlight KPIs |
 | rankings.sql | `::PAGED` | The full ranking |
+| rankings.sql | `TEMP VIEW shown_v` | The extensions the contributor dropdown and the `q` search let through; every panel filters on it |
+| rankings.sql | `TEMP VIEW trend` / `'Trending'::TAB` | Trend % (last 4 weeks vs weeks 9-12 back, spike-corrected) and the Trending tab |
+| extension.sql | `TEMP VIEW cmp_v` | The `compare` extension (NULL for "(none)" or itself) |
+| extension.sql | `### Maintenance` | Maintenance card (::MARKDOWN + ::CALLOUT) |
 | stars.sql | `TEMP VIEW fit` | The log-log fit log10(usage) ~ log10(stars), which the KPIs, scatter colours and both tables use |
 | stars.sql | `TEMP VIEW ext_act` / `TEMP VIEW around` | Releases tab: per-extension releases in the 90 days to the latest capture, and the 4-weeks-after vs before comparison (release weeks vs other weeks) |
 | stars.sql | `::SCATTER` | Stars vs downloads. No `::LINK`: a scatter's link gets only `{value}` (the x), and `{column}` stays empty |

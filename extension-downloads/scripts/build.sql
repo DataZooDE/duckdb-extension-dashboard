@@ -20,6 +20,11 @@
 --     week with no kept file.
 --   * GitHub stars (fetch-stars.py's github/repos.jsonl): an extension gets
 --     its repo's numbers, so extensions sharing a repo share its stars.
+--   * core_downloads.parquet: DuckDB's core extensions from
+--     extensions.duckdb.org (raw/core/), the same rules as above (filed by
+--     the ISO week of _last_update, the latest capture wins, empty files
+--     dropped). Keys that are no extension name (`%68ttpfs`, a URL-encoded
+--     httpfs) are left out: only [a-z0-9_] names not starting with _ are kept.
 --   * releases.parquet (parse-releases.py's releases.jsonl: every change of
 --     a description.yml on main, PRs dated at their merge): a release is a
 --     change of the extension's `repo.ref`, the commit DuckDB builds. kind:
@@ -89,6 +94,28 @@ SELECT * FROM read_json(getvariable('raw') || '/extensions.jsonl', format = 'new
                                    maintainers: 'VARCHAR[]'})
 QUALIFY row_number() OVER (PARTITION BY extension ORDER BY dir = extension DESC, dir) = 1;
 
+CREATE TEMP TABLE core_files AS
+SELECT replace(json ->> '_last_update', 'Z', '')::TIMESTAMP AS last_update,
+       CASE WHEN filename LIKE '%/last-week.json' THEN 1 ELSE 0 END AS is_last_week,
+       filename, json
+FROM read_json_objects([getvariable('raw') || '/core/last-week.json',
+                        getvariable('raw') || '/core/weekly/*.json'], filename = true);
+
+CREATE TEMP TABLE core_downloads AS
+WITH f AS (
+  SELECT *, isoyear(last_update) AS year, week(last_update) AS week,
+         date_trunc('week', last_update)::DATE AS week_start, isodow(last_update) < 7 AS provisional,
+         list_filter(json_keys(json), lambda k: k <> '_last_update' AND regexp_full_match(k, '[a-z0-9][a-z0-9_]*')) AS ks
+  FROM core_files),
+w AS (
+  SELECT * FROM f WHERE len(ks) > 0
+  QUALIFY row_number() OVER (PARTITION BY year, week ORDER BY last_update DESC, is_last_week, regexp_replace(filename, '^.*/', '')) = 1)
+SELECT w.year, w.week, w.week_start, k AS extension, (w.json ->> k)::BIGINT AS downloads, w.last_update, w.provisional
+FROM w, unnest(w.ks) t(k);
+
+COPY (SELECT * FROM core_downloads ORDER BY week_start, extension)
+TO (getvariable('out') || '/.core_downloads.parquet.tmp') (FORMAT parquet, COMPRESSION zstd);
+
 CREATE TEMP TABLE ce_changes AS
 SELECT * FROM read_json(getvariable('raw') || '/releases.jsonl', format = 'newline_delimited',
                         columns = {commit: 'VARCHAR', committed_at: 'VARCHAR', dir: 'VARCHAR', name: 'VARCHAR',
@@ -108,7 +135,8 @@ TO (getvariable('out') || '/.releases.parquet.tmp') (FORMAT parquet, COMPRESSION
 CREATE TEMP TABLE gh_repos AS
 SELECT * FROM read_json(getvariable('raw') || '/github/repos.jsonl', format = 'newline_delimited',
                         columns = {repo: 'VARCHAR', found: 'BOOLEAN', name_with_owner: 'VARCHAR', stars: 'BIGINT',
-                                   forks: 'BIGINT', created_at: 'VARCHAR', pushed_at: 'VARCHAR', archived: 'BOOLEAN'});
+                                   forks: 'BIGINT', created_at: 'VARCHAR', pushed_at: 'VARCHAR', archived: 'BOOLEAN',
+                                   open_issues: 'BIGINT', last_commit: 'VARCHAR'});
 
 
 CREATE TEMP TABLE extensions AS
@@ -120,7 +148,9 @@ SELECT n.extension, m.description, m.language, m.license, m.version, m.repo,
        replace(g.created_at, 'Z', '')::TIMESTAMP AS repo_created,
        replace(g.pushed_at, 'Z', '')::TIMESTAMP AS repo_pushed,
        g.archived,
-       g.name_with_owner AS repo_now
+       g.name_with_owner AS repo_now,
+       g.open_issues,
+       replace(g.last_commit, 'Z', '')::TIMESTAMP AS last_commit
 FROM (SELECT DISTINCT extension FROM downloads UNION SELECT extension FROM ext_meta) n
 LEFT JOIN ext_meta m USING (extension)
 LEFT JOIN gh_repos g ON g.repo = m.repo AND g.found;
@@ -164,6 +194,10 @@ SELECT (SELECT min(w) FROM iso) AS first_week,
        (SELECT count(*) FROM ext_meta) AS extensions_in_repo,
        (SELECT count(DISTINCT owner) FROM extensions WHERE in_repo) AS contributors,
        to_json((SELECT coalesce(list(extension ORDER BY extension), []) FROM extensions WHERE NOT in_repo))::VARCHAR AS unlisted_extensions,
+       to_json({'weeks': (SELECT count(DISTINCT week_start) FROM core_downloads),
+                'first_week': (SELECT min(printf('%d-W%02d', year, week)) FROM core_downloads),
+                'last_week': (SELECT max(printf('%d-W%02d', year, week)) FROM core_downloads),
+                'extensions': (SELECT count(DISTINCT extension) FROM core_downloads)})::VARCHAR AS core,
        to_json({'extensions': (SELECT count(DISTINCT extension) FROM releases),
                 'releases': (SELECT count(*) FROM releases WHERE kind = 'release'),
                 'bulk': (SELECT count(*) FROM releases WHERE kind = 'bulk'),

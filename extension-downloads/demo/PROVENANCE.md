@@ -33,6 +33,16 @@ case-folded to the most common one (`Query-farm` → `query-farm`).
 The maintainer handles are public GitHub user names that their owners
 published in the repo themselves.
 
+## Core extensions (`core_downloads.parquet`)
+
+`extensions.duckdb.org` publishes the same weekly files as the community
+repository for DuckDB's own extensions (`downloads-last-week.json`,
+`download-stats-weekly/{YEAR}/{WEEK}.json`), from 2025-W39 and
+continuously from 2025-12-01. `fetch.sh` fetches them the same way, and
+`build.sql` applies the same rules. One key in the files is no extension
+name (`%68ttpfs`, a URL-encoded `httpfs`) and is dropped. Extensions that
+moved into core (avro, ducklake, iceberg, …) can appear in both files.
+
 ## Releases (`releases.parquet`)
 
 `scripts/parse-releases.py` reads main's first-parent history of every
@@ -49,7 +59,8 @@ without a commit; those builds are not in this file.
 
 `scripts/fetch-stars.py` asks GitHub's GraphQL API for each repo named in a
 `description.yml` (`stargazerCount`, `forkCount`, `createdAt`, `pushedAt`,
-`isArchived`, and `nameWithOwner`: renamed or moved repos redirect, and
+`isArchived`, open issues, the default branch's last commit date, and
+`nameWithOwner`: renamed or moved repos redirect, and
 `repo_now` records where to). Extensions sharing a repo share its stars.
 Repos GitHub can't resolve are listed in `meta.json` → `github.repos_not_found`.
 

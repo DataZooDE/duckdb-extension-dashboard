@@ -3,7 +3,7 @@
 -- @order 1
 -- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, growth
--- @description Weekly installs of DuckDB community extensions: the total, last week's top 20, the biggest movers and the newcomers.
+-- @description Weekly installs of DuckDB community extensions: the total, the top 15, movers and newcomers, and community against DuckDB's core extensions.
 --
 -- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.25 (blueprint.json)
 --
@@ -29,12 +29,21 @@
 --     Typical cause: CI or bot traffic (stochastic 19.9k -> 201k in one
 --     week). The robust view is the 4-week median (this and the previous 3
 --     listed weeks), shown next to the raw counts.
+--
+-- The "Core vs community" tab adds <anofox_data>/core_downloads.parquet:
+-- DuckDB's own (core) extensions from extensions.duckdb.org, the same
+-- format and rules (fetch.sh, from 2025-W39; continuous from 2025-12-01).
+-- Its comparisons use only weeks both files have, from the 2025-11-10
+-- listing change on. Extensions that moved
+-- into core (avro, ducklake, ...) can appear in both for a while; the
+-- ranking marks which list a count comes from.
 
 SELECT 'en-GB'::LOCALE;
 
 SET VARIABLE f_downloads = getvariable('anofox_data') || '/downloads.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
 SET VARIABLE f_releases = getvariable('anofox_data') || '/duckdb_releases.parquet';
+SET VARIABLE f_core = getvariable('anofox_data') || '/core_downloads.parquet';
 
 CREATE OR REPLACE TEMP VIEW weeks AS
 SELECT week_start, any_value(year) AS year, any_value(week) AS week,
@@ -58,6 +67,23 @@ FROM (SELECT d.extension, d.week_start, d.downloads, w.wi, w.total,
 SET VARIABLE last_ws = (SELECT max(week_start) FROM weeks);
 SET VARIABLE prev_ws = (SELECT max(week_start) FROM weeks WHERE week_start < getvariable('last_ws'));
 SET VARIABLE last_label = (SELECT strftime(last_update, '%-d %b') FROM weeks WHERE week_start = getvariable('last_ws'));
+
+-- Core vs community tab: one row per week both files have (setup here,
+-- before the first tab, so the variable below sees the view).
+-- From the 2025-11-10 listing change on (before it the community files
+-- list only the top ~50). community_corrected: spike-corrected
+-- (downloads_corrected); core has no spike correction.
+CREATE OR REPLACE TEMP VIEW both_weeks AS
+SELECT c.week_start, c.core, w.total AS community, k.community_corrected, w.provisional OR c.provisional AS provisional
+FROM (SELECT week_start, sum(downloads) AS core, bool_or(provisional) AS provisional
+      FROM read_parquet(getvariable('f_core')) GROUP BY week_start) c
+JOIN weeks w USING (week_start)
+JOIN (SELECT week_start, sum(downloads_corrected) AS community_corrected
+      FROM read_parquet(getvariable('f_downloads')) GROUP BY week_start) k USING (week_start)
+WHERE c.week_start >= getvariable('full_list_from');
+SET VARIABLE both_last = (SELECT max(week_start) FROM both_weeks);
+
+SELECT 'Community extensions'::TAB;
 
 -- KPI strip: untitled, two lines per tile (value + label).
 SELECT ''::GROUP;
@@ -86,7 +112,7 @@ SELECT 1::ENDGROUP;
 -- renderer reads one series' ::XLINE column and skips overlapping labels).
 -- What each week covers is a "Data coverage" ::TRACK strip under the chart
 -- (no shading on the chart): top ~50 listed / every extension / no data.
-SELECT 6::COL; SELECT 195::HEIGHT;
+SELECT 6::COL; SELECT 189::HEIGHT;
 WITH span AS (
   SELECT range::DATE AS week_start
   FROM range((SELECT min(week_start) FROM weeks), getvariable('last_ws') + INTERVAL 1 DAY, INTERVAL 7 DAY)),
@@ -130,7 +156,7 @@ ORDER BY s.week_start;
 -- How many extensions: listed in the week's capture (with downloads), and
 -- listed in total so far (cumulative, by first week seen). The jump at
 -- 2025-11-10 is the site starting to list every extension, not growth.
-SELECT 3::COL; SELECT 215::HEIGHT;
+SELECT 3::COL; SELECT 209::HEIGHT;
 WITH per AS (
   SELECT week_start, count(*) AS listed FROM ext_weeks GROUP BY week_start),
 firsts AS (
@@ -150,7 +176,7 @@ SELECT week_start ::XAXIS, series ::CATEGORY, v ::LINECHART,
        'With downloads: extensions in that week''s capture. Listed in total: every extension seen so far (cumulative by first week). Before 2025-11-10 the site listed only about the top 50, so the jump there is coverage, not growth.'::INFO
 FROM long ORDER BY week_start, series;
 
-SELECT 3::COL; SELECT 215::HEIGHT;
+SELECT 3::COL; SELECT 209::HEIGHT;
 SELECT extension ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike' ELSE 'Steady' END ::CATEGORY, 'Spike:warn; Steady:neutral'::COLORS,
        1::FLIP, '/d/extension?v.extension={x}'::LINK,
@@ -207,3 +233,58 @@ WHERE first_seen > getvariable('full_list_from')
 GROUP BY extension, first_seen
 ORDER BY first_seen DESC, "Downloads since" DESC, extension
 LIMIT 6;
+
+SELECT 'Core vs community'::TAB;
+
+
+SELECT ''::GROUP;
+SELECT core ::COMPACT, 'Core extension downloads, 7 days to ' || getvariable('last_label') ::LABEL,
+       'All of DuckDB''s own extensions (httpfs, json, parquet, ...) in the latest capture of extensions.duckdb.org, the same kind of count as the community one.'::INFO
+FROM both_weeks WHERE week_start = getvariable('both_last');
+SELECT community ::COMPACT, 'Community extension downloads, same week'::LABEL
+FROM both_weeks WHERE week_start = getvariable('both_last');
+SELECT round(100.0 * community / (core + community), 1) ::PERCENT, 'Community share of all extension downloads'::LABEL,
+       'Community downloads over core plus community downloads in the latest week both have.'::INFO
+FROM both_weeks WHERE week_start = getvariable('both_last');
+SELECT round(100.0 * (n.c / p.c - 1)) ::PERCENT,
+       'Community growth, 13 weeks (core: ' || printf('%+.0f', 100.0 * (n.k / p.k - 1)) || '%)' ::LABEL,
+       'The median of the last 4 weeks both files have against the median of the 4 weeks 13 weeks earlier: the community total spike-corrected (the late-October 2026 bot-like jumps would otherwise dominate), the core total as published.'::INFO
+FROM (SELECT median(community_corrected) AS c, median(core) AS k FROM (SELECT * FROM both_weeks ORDER BY week_start DESC LIMIT 4)) n,
+     (SELECT median(community_corrected) AS c, median(core) AS k FROM both_weeks
+      WHERE week_start BETWEEN getvariable('both_last') - 7 * 16 AND getvariable('both_last') - 7 * 13) p;
+SELECT count(*) ::METRIC, 'Community extensions above the median core one'::LABEL,
+       'Community extensions whose downloads in the latest week beat the median core extension''s (' || format('{:,}', (SELECT round(median(downloads))::BIGINT FROM read_parquet(getvariable('f_core')) WHERE week_start = getvariable('both_last'))) || ').'::INFO
+FROM ext_weeks
+WHERE week_start = getvariable('both_last')
+  AND downloads > (SELECT median(downloads) FROM read_parquet(getvariable('f_core')) WHERE week_start = getvariable('both_last'));
+SELECT 1::ENDGROUP;
+
+-- Both totals per week, on a log scale (core is ~10x community; equal
+-- slopes = equal growth).
+SELECT 8::COL; SELECT 420::HEIGHT;
+SELECT week_start ::XAXIS, series ::CATEGORY, v ::LINECHART, 'log10'::YSCALE, 'comma'::YFORMAT,
+       'Core vs community extension downloads per week (log scale)' ::TITLE,
+       'Weekly INSTALL downloads of all of DuckDB''s core extensions and of all community extensions, in the weeks both files have since the 2025-11-10 listing change (core from 1 Dec 2025). The community total also spike-corrected (scripts/spikes.sql); core is as published. On a log scale the same slope means the same growth rate. The latest week is usually a mid-week capture.'::INFO
+FROM (SELECT week_start, 'Core extensions' AS series, core::DOUBLE AS v FROM both_weeks
+      UNION ALL
+      SELECT week_start, 'Community extensions', community FROM both_weeks
+      UNION ALL
+      SELECT week_start, 'Community, spike-corrected', community_corrected FROM both_weeks)
+ORDER BY week_start, series;
+
+-- Where community extensions stand among the core ones: the top 20 of
+-- both lists together in the latest week. A name in both lists (moved into
+-- core) gets its list in brackets.
+SELECT 4::COL; SELECT 420::HEIGHT;
+WITH b AS (
+  SELECT extension, downloads, 'Core' AS kind FROM read_parquet(getvariable('f_core')) WHERE week_start = getvariable('both_last')
+  UNION ALL
+  SELECT extension, downloads, 'Community' FROM ext_weeks WHERE week_start = getvariable('both_last')),
+t AS (SELECT *, count(*) OVER (PARTITION BY extension) AS n FROM b ORDER BY downloads DESC, extension LIMIT 20)
+SELECT CASE WHEN n > 1 THEN extension || ' (' || lower(kind) || ')' ELSE extension END ::XAXIS,
+       downloads ::BARCHART_STACKED, kind ::CATEGORY, 'Core:neutral; Community:good'::COLORS, 1::FLIP,
+       'Top 20, core and community together' ::TITLE,
+       'The 20 most-downloaded extensions of either list in the latest week both have. Green: community extensions.'::INFO
+FROM t
+-- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
+ORDER BY downloads ASC, extension DESC;

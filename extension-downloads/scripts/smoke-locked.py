@@ -4,7 +4,7 @@
 Each dashboard is asked with no variables at all (what a bare /d/<id> link
 gets) and with a few variable sets that exercise its edge cases: an
 extension with spikes, one without, one not listed in the latest week, and
-an empty and a non-matching highlight. Every panel must answer 200, or 413
+an empty, a matching and a non-matching search. Every panel must answer 200, or 413
 for a ::PAGED table asked for without a page (the browser never does that).
 
     python3 extension-downloads/scripts/smoke-locked.py --url http://127.0.0.1:8103 [--unlisted NAME]
@@ -35,9 +35,15 @@ cases = [
     ("extension", {}),
     ("extension", {"extension": "stochastic"}),
     ("extension", {"extension": "avro"}),
+    ("extension", {"extension": "anofox_forecast", "compare": "stochastic"}),
+    ("extension", {"extension": "anofox_forecast", "compare": "anofox_forecast"}),
+    ("extension", {"extension": "stochastic", "compare": "avro"}),
+    ("extension", {"compare": "(none)"}),
     ("rankings", {}),
-    ("rankings", {"highlight": ""}),
-    ("rankings", {"highlight": "no-such-extension"}),
+    ("rankings", {"q": ""}),
+    ("rankings", {"q": "excel"}),
+    ("rankings", {"q": "no-such-extension"}),
+    ("rankings", {"contributor": "DataZooDE", "q": "forecast"}),
     ("contributors", {}),
     ("contributor", {}),
     ("stars", {}),

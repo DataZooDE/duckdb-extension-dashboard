@@ -26,7 +26,8 @@ both written by [`scripts/fetch.sh`](scripts/fetch.sh):
 | File | Shape |
 |---|---|
 | `downloads.parquet` | One row per ISO week and extension: `year`, `week` (ISO), `week_start` (DATE, the ISO Monday), `extension`, `downloads` (BIGINT), `last_update` (TIMESTAMP, UTC: when the site captured that week), `provisional` (BOOLEAN) |
-| `extensions.parquet` | One row per extension: its `description.yml` fields, `owner` (the contributor) and the repo's GitHub `stars`, `forks`, `repo_created`, `repo_pushed`, `archived` and `repo_now` (where GitHub resolves it today) |
+| `extensions.parquet` | One row per extension: its `description.yml` fields, `owner` (the contributor) and the repo's GitHub `stars`, `forks`, `repo_created`, `repo_pushed`, `archived`, `repo_now` (where GitHub resolves it today), `open_issues` and `last_commit` (the default branch's latest commit) |
+| `core_downloads.parquet` | DuckDB's core extensions (httpfs, json, …) from `extensions.duckdb.org`, in the shape of `downloads.parquet` and built by the same rules; from 2025-W39 (continuous from 2025-12-01). Keys that are no extension name (`%68ttpfs`) are dropped |
 | `releases.parquet` | One row per community release of an extension, from the history of its `description.yml` on main of duckdb/community-extensions (PRs dated at their merge): `extension`, `released_at` (UTC), `week_start`, `version`, `ref`, `commit`, `kind` (`first`: its first listing; `release`: a new `repo.ref`; `bulk`: a new ref from a DuckDB-team commit changing more than 3 extensions) |
 | `stars.parquet` | One row per fetch day and repo: `date`, `repo`, `stars`, `forks`. Each fetch adds that day's snapshot to the history already in the data root: GitHub shows a repo's stargazers with their dates to its admins only, so the history starts with the first fetch (2026-10-30) |
 | `meta.json` | `fetched_at`, the source URLs, the weeks covered, `missing_weeks`, `provisional_weeks`, and `dropped_files` (each file the build left out, with the reason). The dashboards don't read it; it records what the parquet does and doesn't hold |
@@ -71,7 +72,9 @@ Variables a viewer may set (each dashboard's `-- @vars`):
 | Variable | Dashboard | Meaning |
 |---|---|---|
 | `extension` | extension.sql | the extension shown (dropdown, `?v.extension=<name>`, links from the other dashboards; a `path_vars` entry in [`locked.json`](locked.json)). Default: the latest week's top extension |
-| `highlight` | rankings.sql | flag and sum every extension whose name contains this text, ignoring case (default `anofox`) |
+| `q` | rankings.sql | show only the extensions whose name or description contains this text, ignoring case (default empty: all) |
+| `contributor` | rankings.sql | show only this contributor's extensions (default `(all)`) |
+| `compare` | extension.sql | a second extension on the charts (default `(none)`) |
 
 ### Demo snapshot
 
@@ -124,7 +127,10 @@ always reads fresh, so no restart is needed.
 
 Every page fits a 1920×1080 screen without scrolling.
 
-- **Overview** (`overview.sql`, home).
+- **Overview** (`overview.sql`, home). Two tabs; the second, **Core vs
+  community**, puts the community total next to DuckDB's core extensions
+  (log scale, community also spike-corrected), with KPIs for both totals,
+  the community share, 13-week growth of each, and a top 20 of both lists.
   - KPI strip: downloads in the latest capture with the % change vs the
     week before, extensions with downloads (± vs the week before), new this
     week, and the top extension with its share.
@@ -140,13 +146,22 @@ Every page fits a 1920×1080 screen without scrolling.
   is ordered by rank and labelled with rank and downloads.
   - KPIs: last week's downloads, rank, places up or down, share of all
     downloads, and weeks listed.
+  - A "Compare with" dropdown (`compare`, default "(none)") adds a second
+    extension to the downloads, rank and share charts.
+  - A maintenance card: Active / Quiet / Dormant / Archived from the last
+    commit and the last release (90 days, a year), with the repository,
+    open issues, stars and forks.
   - Weekly downloads with the 4-week median, "No data" bands, and two tick
     strips below: spikes (hover for the numbers) and the extension's own
     releases (hover for the version and merge date; bulk updates left out).
   - Rank over time on a reversed axis.
   - Share of total over time.
   - The neighbours 3 places either side in the latest ranking.
-- **Rankings** (`rankings.sql`).
+- **Rankings** (`rankings.sql`). A contributor dropdown and a search box
+  (`q`: name or description, ignoring case) narrow both tabs.
+  - **Trending** tab: the biggest risers, the median of the last 4 weeks
+    against the 4 weeks 8 weeks before (spike-corrected; at least 100
+    before and 500 now).
   - A "Highlight" text box (default `anofox`) and a KPI row for the
     matching extensions: how many there are, their combined downloads, the
     rank they would have as one extension, and their share.

@@ -3,15 +3,22 @@
 -- @order 2
 -- @group DuckDB Extension Dashboard
 -- @tags duckdb, community extensions, downloads, rank
--- @description One extension's weekly installs with spikes marked, its rank and share over time, and its neighbours in the ranking.
--- @vars extension
+-- @description One extension's weekly installs with spikes and releases, rank and share over time, maintenance, and a side-by-side comparison.
+-- @vars extension, compare
 --
 -- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.25 (blueprint.json)
 --
 -- `extension` (the dropdown, ?v.extension=<name>, or a link from the other
 -- dashboards; a path variable in locked.json) picks the extension; with no
 -- value at all the page shows the latest week's top extension (`sel`
--- below), the dropdown's first option. Definitions (week, provisional,
+-- below), the dropdown's first option. `compare` (the second dropdown,
+-- ?v.compare=<name>; default "(none)") adds a second extension to the
+-- downloads, rank and share charts; the KPIs, spikes, releases, gaps and
+-- maintenance stay the first extension's. Maintenance (extensions.parquet
+-- from fetch-stars.py, releases.parquet): Active = a commit on the default
+-- branch or a release in the 90 days to the latest capture, Quiet = within
+-- 365 days, Dormant = older, Archived = the repo is archived on GitHub.
+-- Definitions (week, provisional,
 -- gap, "not listed", spike, 4-week median): see overview.sql's header --
 -- the setup views below are the same, copied.
 
@@ -22,6 +29,7 @@ SET VARIABLE f_extensions = getvariable('anofox_data') || '/extensions.parquet';
 SET VARIABLE full_list_from = DATE '2025-11-10';
 SET VARIABLE f_releases = getvariable('anofox_data') || '/duckdb_releases.parquet';
 SET VARIABLE f_ext_releases = getvariable('anofox_data') || '/releases.parquet';
+SET VARIABLE ref_ts = (SELECT max(last_update) FROM read_parquet(getvariable('anofox_data') || '/downloads.parquet'));
 
 CREATE OR REPLACE TEMP VIEW weeks AS
 SELECT week_start, any_value(year) AS year, any_value(week) AS week,
@@ -52,7 +60,8 @@ WHERE trim(l) <> '' AND lower(trim(split_part(l, ',', 1), ' "')) <> 'extension'
 GROUP BY 1;
 
 CREATE OR REPLACE TEMP VIEW ext_owner AS
-SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo, e.stars
+SELECT e.extension, coalesce(g.grp, e.owner) AS contributor, e.maintainers, e.in_repo, e.stars,
+       e.forks, e.repo, e.repo_now, e.archived, e.open_issues, e.last_commit
 FROM read_parquet(getvariable('f_extensions')) e LEFT JOIN user_groups g USING (extension);
 
 SET VARIABLE last_ws = (SELECT max(week_start) FROM weeks);
@@ -67,6 +76,10 @@ CREATE OR REPLACE TEMP VIEW sel_v AS SELECT coalesce(nullif(getvariable('extensi
                              ORDER BY downloads DESC, extension LIMIT 1)) AS sel;
 CREATE OR REPLACE TEMP VIEW sel_contributor_v AS SELECT coalesce((SELECT contributor FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)), '(unlisted)') AS sel_contributor,
                                                           (SELECT stars FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)) AS sel_stars;
+-- The comparison extension: NULL for "(none)", an empty pick or the
+-- extension itself.
+CREATE OR REPLACE TEMP VIEW cmp_v AS SELECT CASE WHEN nullif(getvariable('compare'), '') IN ('(none)', (SELECT sel FROM sel_v)) THEN NULL
+                                                 ELSE nullif(getvariable('compare'), '') END AS cmp;
 
 -- Every extension ever listed, the latest week's ranking first (so the
 -- default, the first option, is the top extension); the label carries the
@@ -80,6 +93,18 @@ SELECT a.extension AS extension ::DROPDOWN,
 FROM (SELECT DISTINCT extension FROM ext_weeks) a
 LEFT JOIN ext_weeks l ON l.extension = a.extension AND l.week_start = getvariable('last_ws')
 ORDER BY l.rnk NULLS LAST, a.extension;
+
+-- The comparison: "(none)" first (the default), then the same list.
+SELECT v AS compare ::DROPDOWN, lab AS compare_label ::OPTION_LABEL, 'Compare with'::LABEL
+FROM (SELECT 0 AS o, NULL::BIGINT AS r, '(none)' AS v, 'No comparison' AS lab
+      UNION ALL
+      SELECT 1, l.rnk, a.extension,
+             a.extension || CASE WHEN l.rnk IS NOT NULL
+                                 THEN '  ·  #' || l.rnk || '  ·  ' || format('{:,}', l.downloads)
+                                 ELSE '  ·  not listed last week' END
+      FROM (SELECT DISTINCT extension FROM ext_weeks) a
+      LEFT JOIN ext_weeks l ON l.extension = a.extension AND l.week_start = getvariable('last_ws'))
+ORDER BY o, r NULLS LAST, v;
 
 -- KPI strip: one row even when the extension isn't listed in the latest
 -- week (the values are then empty).
@@ -118,7 +143,7 @@ SELECT 1::ENDGROUP;
 -- Weekly downloads, raw and 4-week median, with the "No data" gaps of the
 -- whole series shaded (each band hangs on the extension's last listed week
 -- before the gap) and a tick strip of this extension's spikes under it.
-SELECT 8::COL; SELECT 190::HEIGHT;
+SELECT 8::COL; SELECT 172::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 WITH span AS (
   SELECT range::DATE AS week_start
@@ -129,10 +154,17 @@ gaps AS (
         FROM span s WHERE NOT EXISTS (SELECT 1 FROM weeks w WHERE w.week_start = s.week_start))
   GROUP BY island),
 e AS (SELECT * FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v)),
+-- who: the extension ('sel') or the comparison ('cmp'); kind: raw or the
+-- 4-week median. Series names carry the extension's name only when there
+-- is a comparison.
 long AS (
-  SELECT week_start, 'Weekly downloads' AS series, downloads::DOUBLE AS v FROM e
-  UNION ALL
-  SELECT week_start, '4-week median', med4 FROM e),
+  SELECT x.week_start, w.who, k.kind,
+         CASE WHEN (SELECT cmp FROM cmp_v) IS NULL THEN CASE k.kind WHEN 'raw' THEN 'Weekly downloads' ELSE '4-week median' END
+              ELSE x.extension || CASE k.kind WHEN 'raw' THEN ' weekly' ELSE ' 4-week median' END END AS series,
+         CASE k.kind WHEN 'raw' THEN x.downloads::DOUBLE ELSE x.med4 END AS v
+  FROM (SELECT 'sel' AS who, (SELECT sel FROM sel_v) AS ext UNION ALL SELECT 'cmp', (SELECT cmp FROM cmp_v)) w
+  JOIN ext_weeks x ON x.extension = w.ext
+  CROSS JOIN (VALUES ('raw'), ('med')) k(kind)),
 -- First seen: the extension's first listed week. "listed since" when that is
 -- the first published week or the 2025-11-10 listing change, "in the top-50
 -- list since" before that change (the site then listed only ~50), else
@@ -150,21 +182,22 @@ rel AS (
   FROM read_parquet(getvariable('f_releases'))
   GROUP BY 1)
 SELECT l.week_start ::XAXIS, l.series ::CATEGORY, l.v ::LINECHART,
-       CASE WHEN l.series = 'Weekly downloads' THEN g.gap_from END ::XBAND_FROM,
-       CASE WHEN l.series = 'Weekly downloads' THEN g.gap_to END ::XBAND_TO,
-       CASE WHEN l.series = '4-week median' AND l.week_start = fs.week_start THEN fs.week_start
-            WHEN l.series = '4-week median' THEN r.week_start END ::XLINE,
-       CASE WHEN l.series = '4-week median' AND l.week_start = fs.week_start THEN fs.label
-            WHEN l.series = '4-week median' THEN r.label END ::XLINE_LABEL,
+       CASE WHEN l.who = 'sel' AND l.kind = 'raw' THEN g.gap_from END ::XBAND_FROM,
+       CASE WHEN l.who = 'sel' AND l.kind = 'raw' THEN g.gap_to END ::XBAND_TO,
+       CASE WHEN l.who = 'sel' AND l.kind = 'med' AND l.week_start = fs.week_start THEN fs.week_start
+            WHEN l.who = 'sel' AND l.kind = 'med' THEN r.week_start END ::XLINE,
+       CASE WHEN l.who = 'sel' AND l.kind = 'med' AND l.week_start = fs.week_start THEN fs.label
+            WHEN l.who = 'sel' AND l.kind = 'med' THEN r.label END ::XLINE_LABEL,
        'Weekly downloads of ' || (SELECT sel FROM sel_v) || ' (by ' || (SELECT sel_contributor FROM sel_contributor_v)
-         || coalesce(', ★ ' || format('{:,}', (SELECT sel_stars FROM sel_contributor_v)), '') || '), raw and 4-week median' ::TITLE,
-       'INSTALL downloads per weekly capture; shaded weeks have no data (a gap, not a zero). Dashed lines: the first listed week ("listed since" when that is the first published week or the 2025-11-10 listing change) and DuckDB releases, labelled for x.y.0, and a week the extension is not listed in has no point. The 4-week median (this and its previous 3 listed weeks) ignores one-week spikes; the Spikes strip below ticks each spike (more than 5x the median of its previous 8 listed weeks, at least 4 of them, and at least 1,000 downloads), the Releases strip each week with a release of this extension in duckdb/community-extensions (a new pinned commit merged; hover for the version and date).'::INFO
+         || coalesce(', ★ ' || format('{:,}', (SELECT sel_stars FROM sel_contributor_v)), '') || ')'
+         || coalesce(' vs ' || (SELECT cmp FROM cmp_v), ', raw and 4-week median') ::TITLE,
+       'INSTALL downloads per weekly capture; shaded weeks have no data (a gap, not a zero). Dashed lines: the first listed week ("listed since" when that is the first published week or the 2025-11-10 listing change) and DuckDB releases, labelled for x.y.0, and a week the extension is not listed in has no point. The 4-week median (this and its previous 3 listed weeks) ignores one-week spikes; the Spikes strip below ticks each spike (more than 5x the median of its previous 8 listed weeks, at least 4 of them, and at least 1,000 downloads), the Releases strip each week with a release of this extension in duckdb/community-extensions (a new pinned commit merged; hover for the version and date). Compare with: adds a second extension''s weekly downloads and 4-week median; the strips, gaps and lines stay the first extension''s.'::INFO
 FROM long l
 LEFT JOIN (SELECT g.*, (SELECT max(e.week_start) FROM e WHERE e.week_start < g.gap_from) AS host FROM gaps g) g
   ON g.host = l.week_start
 CROSS JOIN fs
 LEFT JOIN rel r ON r.week_start = l.week_start
-ORDER BY l.week_start, l.series;
+ORDER BY l.week_start, l.who DESC, l.kind DESC;
 SELECT week_start ::XAXIS, 'Spikes'::TRACK,
        'Spike, week of ' || strftime(week_start, '%-d %b %Y') || ': ' || format('{:,}', downloads)
          || ' vs a median of ' || format('{:,}', round(base8)::BIGINT) || ' over the previous ' || n8 || ' listed weeks' ::LABEL
@@ -212,18 +245,50 @@ FROM ext_weeks c LEFT JOIN p USING (extension) LEFT JOIN ext_owner o USING (exte
 WHERE c.week_start = getvariable('last_ws') AND c.rnk BETWEEN me.rnk - 3 AND me.rnk + 3
 ORDER BY c.rnk, c.extension;
 
-SELECT 6::COL; SELECT 135::HEIGHT;
+-- Rank and share: one line per extension (the comparison's too).
+SELECT 4::COL; SELECT 135::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
-SELECT week_start ::XAXIS, rnk ::LINECHART, 'reverse'::YSCALE,
-       'Rank of ' || (SELECT sel FROM sel_v) || ' by week (1 = most downloaded)' ::TITLE,
+SELECT week_start ::XAXIS, extension ::CATEGORY, rnk ::LINECHART, 'reverse'::YSCALE,
+       'Rank by week (1 = most downloaded)' ::TITLE,
        'Rank among the extensions listed that week, by downloads (ties share a rank). Before 2025-11-10 the site listed only about the top 50, so ranks there are within that top list.'::INFO
-FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v)
-ORDER BY week_start;
+FROM ext_weeks WHERE extension IN ((SELECT sel FROM sel_v), (SELECT cmp FROM cmp_v))
+ORDER BY week_start, extension = (SELECT sel FROM sel_v) DESC;
 
-SELECT 6::COL; SELECT 135::HEIGHT;
+SELECT 4::COL; SELECT 135::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
-SELECT week_start ::XAXIS, round(100.0 * downloads / total, 3) ::LINECHART, 'percent'::YFORMAT,
-       'Share of all downloads, ' || (SELECT sel FROM sel_v) ::TITLE,
-       'This extension''s downloads as a percentage of every listed extension''s downloads in the same weekly capture. Before 2025-11-10 the total covers only about the top 50 extensions, which inflates every share there.'::INFO
-FROM ext_weeks WHERE extension = (SELECT sel FROM sel_v)
-ORDER BY week_start;
+SELECT week_start ::XAXIS, extension ::CATEGORY, round(100.0 * downloads / total, 3) ::LINECHART, 'percent'::YFORMAT,
+       'Share of all downloads' ::TITLE,
+       'The extension''s downloads as a percentage of every listed extension''s downloads in the same weekly capture. Before 2025-11-10 the total covers only about the top 50 extensions, which inflates every share there.'::INFO
+FROM ext_weeks WHERE extension IN ((SELECT sel FROM sel_v), (SELECT cmp FROM cmp_v))
+ORDER BY week_start, extension = (SELECT sel FROM sel_v) DESC;
+
+-- Maintenance: is the extension looked after? From the GitHub fetch
+-- (last commit on the default branch, open issues, archived) and the
+-- community releases, against the latest capture.
+SELECT 4::COL;
+WITH o AS (SELECT * FROM ext_owner WHERE extension = (SELECT sel FROM sel_v)),
+r AS (SELECT max(released_at) AS last_rel,
+             arg_max(coalesce('v' || ltrim(version, 'v'), left(ref, 7)), released_at) AS last_what,
+             count(*) FILTER (WHERE released_at > getvariable('ref_ts') - INTERVAL 90 DAY) AS rel90
+      FROM read_parquet(getvariable('f_ext_releases'))
+      WHERE extension = (SELECT sel FROM sel_v) AND kind <> 'bulk' AND released_at <= getvariable('ref_ts')),
+m AS (SELECT o.*, r.*, greatest(o.last_commit, r.last_rel) AS last_activity,
+             CASE WHEN o.repo IS NULL THEN 'Unknown'
+                  WHEN o.archived THEN 'Archived'
+                  WHEN greatest(o.last_commit, r.last_rel) > getvariable('ref_ts') - INTERVAL 90 DAY THEN 'Active'
+                  WHEN greatest(o.last_commit, r.last_rel) > getvariable('ref_ts') - INTERVAL 365 DAY THEN 'Quiet'
+                  ELSE 'Dormant' END AS status
+      FROM (SELECT 1) one LEFT JOIN o ON true LEFT JOIN r ON true)
+SELECT '### Maintenance: ' || status || chr(10) || chr(10)
+       || CASE WHEN repo IS NULL THEN '- Not in the community-extensions repo any more (moved into DuckDB core, or removed).'
+               ELSE '- **Repository**: [' || coalesce(repo_now, repo) || '](https://github.com/' || coalesce(repo_now, repo) || ')'
+                    || CASE WHEN archived THEN ' (archived)' ELSE '' END || chr(10)
+                    || '- **Last commit**: ' || coalesce(strftime(last_commit, '%-d %b %Y'), '—') || chr(10)
+                    || '- **Last release**: ' || coalesce(last_what || ', ' || strftime(last_rel, '%-d %b %Y'), '—')
+                    || ' · ' || coalesce(rel90, 0) || ' in 90 days' || chr(10)
+                    || '- **Open issues**: ' || coalesce(open_issues::VARCHAR, '—')
+                    || ' · **Stars**: ' || coalesce(format('{:,}', stars), '—') || ' · **Forks**: ' || coalesce(forks::VARCHAR, '—') END
+       || chr(10) || chr(10) || 'Active: a commit or release in the 90 days to ' || getvariable('last_label')
+       || '; Quiet: within a year; Dormant: older.' ::MARKDOWN,
+       CASE status WHEN 'Active' THEN 'success' WHEN 'Quiet' THEN 'note' ELSE 'warning' END ::CALLOUT
+FROM m;

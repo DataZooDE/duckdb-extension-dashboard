@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GitHub stars of every extension's repo, as of now.
+"""GitHub stars and maintenance signals of every extension's repo, as of now.
 
 Called by scripts/fetch.sh after parse-descriptions.py: reads the `repo`
 (owner/repo) of each line of extensions.jsonl and asks GitHub's GraphQL API
@@ -10,7 +10,8 @@ so the output is deterministic:
                        description.yml writes it), "found", "name_with_owner"
                        (where GitHub resolves it today: renamed or moved repos
                        redirect), "stars", "forks", "created_at", "pushed_at",
-                       "archived"}
+                       "archived", "open_issues", "last_commit" (the
+                       default branch's latest commit date)}
 
 A repo GitHub can't resolve (deleted, private) is "found": false with no
 numbers; any other API error fails the fetch.
@@ -62,7 +63,9 @@ def gql(query):
     return d["data"]
 
 
-FIELDS = "nameWithOwner stargazerCount forkCount createdAt pushedAt isArchived"
+FIELDS = ("nameWithOwner stargazerCount forkCount createdAt pushedAt isArchived "
+          "issues(states: OPEN) { totalCount } "
+          "defaultBranchRef { target { ... on Commit { committedDate } } }")
 
 info = {}
 for i in range(0, len(repos), 50):
@@ -76,7 +79,9 @@ for i in range(0, len(repos), 50):
         info[r] = {"repo": r, "found": False} if not x else {
             "repo": r, "found": True, "name_with_owner": x["nameWithOwner"],
             "stars": x["stargazerCount"], "forks": x["forkCount"], "created_at": x["createdAt"],
-            "pushed_at": x["pushedAt"], "archived": x["isArchived"]}
+            "pushed_at": x["pushedAt"], "archived": x["isArchived"],
+            "open_issues": x["issues"]["totalCount"],
+            "last_commit": ((x.get("defaultBranchRef") or {}).get("target") or {}).get("committedDate")}
 
 os.makedirs(out, exist_ok=True)
 with open(os.path.join(out, "repos.jsonl"), "w") as fh:
