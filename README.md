@@ -72,14 +72,19 @@ flowchart LR
 There's no server: the site ships anofox-visualization's in-browser app, built
 from the pinned release, next to the parquet snapshot. Your browser runs each
 dashboard's SQL in DuckDB-Wasm, so the pickers re-query instantly.
-[`update.yml`](.github/workflows/update.yml) runs daily at 06:30 UTC:
+**What's live is the latest [release](https://github.com/DataZooDE/duckdb-extension-dashboard/releases)'s code with the newest data.**
+Commits on main go live only once they're released. [`update.yml`](.github/workflows/update.yml)
+runs daily at 06:30 UTC:
 
 1. **Fetch:** download the community and core metrics, the extension metadata and release history, DuckDB releases and the GitHub numbers, check which extensions are built for the newest DuckDB, and add the spike correction.
-2. **Check:** every dashboard passes `dashboard --check --strict` and a locked-server smoke test on the fresh data.
-3. **Commit:** the snapshot is committed if it changed, so the git log doubles as the data's history.
-4. **Publish:** build the site with the pinned release's `dashboard --site` (its prebuilt app, the dashboards and the data) and deploy it.
+2. **Check:** every dashboard on main passes `dashboard --check --strict` and a locked-server smoke test on the fresh data.
+3. **Commit:** the snapshot is committed to main if it changed, so the git log doubles as the data's history.
+4. **Publish:** check out the latest release, run *its* strict check and smoke test on the fresh data, build the site with its pinned anofox-visualization (`dashboard --site`), and deploy it.
 
-Any failure stops the run before anything is published, so the live site keeps the last good data.
+Publishing a GitHub Release runs step 4 right away, with the current snapshot.
+Any failure stops the run before anything is published, so the live site keeps the last good version.
+
+To ship a change: merge it to main, then publish a release (tag `vYYYY.MM.DD`).
 
 ## The data
 
