@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-10-31T09:41:26Z",
+  "fetched_at": "2026-10-31T21:40:27Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
@@ -187,7 +187,7 @@
         "now": "RGenomicsETL/ducknng"
       }
     ],
-    "stars": 9597,
+    "stars": 9604,
     "stars_history_from": "2026-10-30"
   }
 }
