@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, downloads, github, stars, releases
 -- @description GitHub stars and community releases against downloads: how closely they go together, and who stands out.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.25 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.30 (blueprint.json)
 --
 -- Stars: extensions.parquet's `stars` (the repo's stargazerCount when
 -- scripts/fetch.sh ran; extensions sharing a repo share its stars, so
@@ -131,27 +131,28 @@ SELECT 1::ENDGROUP;
 
 -- Every extension with a star and a download, on log scales, coloured by how
 -- far it sits from the fit; 14 labelled, the furthest from the fit weighted
--- by stars (so a 300-star outlier wins over a 1-star one). No ::LINK: a
--- scatter's link gets only the x value ({value}), and a {column}
--- placeholder stays empty (anofox-visualization v2026.10.25, anofox-visualization#752).
+-- by stars (so a 300-star outlier wins over a 1-star one). Hovering a dot
+-- shows that extension; clicking it opens the extension page.
 SELECT 8::COL; SELECT 232::HEIGHT;
 SELECT stars ::XAXIS, round(usage) ::SCATTER,
        -- the least-squares line of the fit view: on the log-log axes it is
        -- straight, log10(downloads) = a + b * log10(stars)
        (SELECT round(b, 4) || ',' || round(a, 4) FROM fit) ::ABLINE,
-       'log10'::XSCALE, 'log10'::YSCALE,
+       'log10'::XSCALE, 'log10'::YSCALE, 0.7::ALPHA, 'comma'::YFORMAT,
        CASE WHEN vs_fit >= 5 THEN 'Used 5x+ more than the fit'
             WHEN vs_fit <= 0.2 THEN 'Used 5x+ less than the fit'
             ELSE 'Near the fit' END ::CATEGORY,
-       -- No point opacity: ::ALPHA reaches map layers only and ::COLORS takes
-       -- #rrggbb, not #rrggbbaa. No name in the tooltip: a scatter dot's
-       -- tooltip has only series, value and x (no per-point ::LABEL), and one
-       -- series per extension lumps all but 29 into "Other"
-       -- (anofox-visualization v2026.10.25, anofox-visualization#752).
        'Used 5x+ more than the fit:good; Near the fit:neutral; Used 5x+ less than the fit:warn'::COLORS,
        extension ::LABEL, 14::LABEL_TOP, abs(log10(vs_fit)) * log10(stars + 1) ::RANK,
+       '/d/extension?v.extension={extension}'::LINK,
+       -- the tooltip from SQL: the name, then stars and downloads in data
+       -- units ({x} is the log10 value under a log scale in v2026.10.30)
+       extension AS "Extension" ::TOOLTIP, stars AS "Stars" ::TOOLTIP, round(usage)::BIGINT AS "Weekly downloads" ::TOOLTIP,
+       '{Extension}'::TOOLTIP_HEADER,
+       '{Stars:comma} stars · {Weekly downloads:comma} weekly downloads'::TOOLTIP_FORMAT,
+       'single'::TOOLTIP_MODE,
        'Stars vs weekly downloads, one dot per extension' ::TITLE,
-       'x: GitHub stars of the extension''s repo. y: median weekly downloads over the last 4 weeks with data (to ' || getvariable('last_label') || '), spike-corrected. Both on log scales; extensions with no star or no download are left out. The line: the least-squares fit log10(downloads) ~ log10(stars); colour: usage against it. The 14 extensions furthest from the line are labelled; the tables below list the extremes.'::INFO
+       'x: GitHub stars of the extension''s repo. y: median weekly downloads over the last 4 weeks with data (to ' || getvariable('last_label') || '), spike-corrected. Both on log scales; extensions with no star or no download are left out. The line: the least-squares fit log10(downloads) ~ log10(stars); colour: usage against it. The 14 extensions furthest from the line are labelled; the tables below list the extremes. Hover a dot for the extension, click it to open it.'::INFO
 FROM ext_fit WHERE vs_fit IS NOT NULL
 ORDER BY stars, extension;
 

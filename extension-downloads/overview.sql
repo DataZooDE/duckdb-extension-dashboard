@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, downloads, growth
 -- @description Weekly installs of DuckDB community extensions: the total, the top 15, movers and newcomers, and community against DuckDB's core extensions.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.25 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.30 (blueprint.json)
 --
 -- Home dashboard (locked.json's "home"). Reads one file,
 -- <anofox_data>/downloads.parquet, written by scripts/fetch.sh (one row per

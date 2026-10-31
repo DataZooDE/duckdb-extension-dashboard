@@ -8,8 +8,9 @@
 #   --blueprint DIR  the blueprint folder (default: extension-downloads)
 #   --data DIR       the data root (default <blueprint>/data)
 #   --out DIR        the site (default: site/), replaced
-#   --base PATH      where the site is served (default: /duckdb-extension-dashboard/,
-#                    GitHub project pages); scripts/preview.sh serves it there too
+#
+# The site works under any path (GitHub project pages serve it under
+# /duckdb-extension-dashboard/; scripts/preview.sh does the same).
 #
 #   site/index.html          the home dashboard (locked.json "home")
 #   site/d/<id>/             one page per dashboard (/d/<id>?v.x=… links)
@@ -22,13 +23,12 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
 . "$HERE/tools-dir.sh"
-BP="extension-downloads" DATA="" OUT="site" BASE="/duckdb-extension-dashboard/"
+BP="extension-downloads" DATA="" OUT="site"
 while [ $# -gt 0 ]; do
   case "$1" in
     --blueprint) BP="$2"; shift 2 ;;
     --data) DATA="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
-    --base) BASE="$2"; shift 2 ;;
     *) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
   esac
 done
@@ -38,20 +38,11 @@ DATA="${DATA:-$BP/data}"
 TOOLS="$(tools_dir "$BP")"
 [ -x "$TOOLS/dashboard" ] && [ -d "$TOOLS/web" ] || { echo "build-site.sh: no tools in $TOOLS (run scripts/fetch-tools.sh --blueprint $(basename "$BP"))" >&2; exit 1; }
 
-# locked.json also holds server-only limits (max_rows, threads, …), which
-# --site refuses (anofox-visualization#501): pass it the keys a site can use.
-OPTS="$(mktemp --suffix .json)"
-trap 'rm -f "$OPTS"' EXIT
-python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); json.dump({k: o[k] for k in ("path_vars", "nav_picker", "app", "home", "theme") if k in o}, open(sys.argv[2], "w"))' "$BP/locked.json" "$OPTS"
-
+# --site takes the locked server's options file as it is (server-only
+# limits are ignored, anofox-visualization#507), and keeps the dashboards'
+# '/d/<id>?v.x=…' links under the site's sub-path (#502).
 rm -rf "$OUT"
-"$TOOLS/dashboard" --site "$BP" "$OUT" --data "$DATA" --options "$OPTS" --app "$TOOLS/web"
-
-# The dashboards' drill-through links are '/d/<id>?v.x=…', as on the locked
-# server. Published mode switches in place only for links under the site's
-# own path, so under /<repo>/ they'd leave the site (anofox-visualization
-# v2026.10.25, anofox-visualization#500): prefix them with BASE in the site's copies.
-sed -i "s#'/d/#'${BASE%/}/d/#g" "$OUT"/dashboards/*.sql
+"$TOOLS/dashboard" --site "$BP" "$OUT" --data "$DATA" --options "$BP/locked.json" --app "$TOOLS/web"
 
 # The site used to serve <id>.html?v.x=… (README, posts, bookmarks): send
 # those to d/<id>/ with the query string kept.

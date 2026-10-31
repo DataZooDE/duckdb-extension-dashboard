@@ -6,7 +6,7 @@
 -- @description One extension's weekly installs with spikes and releases, rank and share over time, maintenance, and a side-by-side comparison.
 -- @vars extension, compare
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.25 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.30 (blueprint.json)
 --
 -- `extension` (the dropdown, ?v.extension=<name>, or a link from the other
 -- dashboards; a path variable in locked.json) picks the extension; with no

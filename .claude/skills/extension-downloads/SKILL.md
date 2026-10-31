@@ -77,7 +77,7 @@ The setup layer is identical in all three files, copied rather than shared
 | overview/rankings/extension.sql | `TEMP VIEW ext_health` | The Maintenance status, copied in all three (Active / Mature / Not built – risk / Archived / Not in repo; the words match ::BADGE's colour keywords: "active" green, "risk" amber, "stable" would be amber) |
 | stars.sql | `TEMP VIEW fit` | The log-log fit log10(usage) ~ log10(stars), which the KPIs, scatter colours and both tables use |
 | stars.sql | `TEMP VIEW ext_act` / `TEMP VIEW around` | Releases tab: per-extension releases in the 90 days to the latest capture, and the 4-weeks-after vs before comparison (release weeks vs other weeks) |
-| stars.sql | `::SCATTER` | Stars vs downloads. No `::LINK`: a scatter's link gets only `{value}` (the x), and `{column}` stays empty |
+| stars.sql | `::SCATTER` | Stars vs downloads: `0.7::ALPHA`, a point `::LINK` with `{extension}`, and the tooltip from `::TOOLTIP` columns + `::TOOLTIP_FORMAT` (the default tooltip's x is the log10 value under `'log10'::XSCALE` in v2026.10.30) |
 
 ## Recipes
 
