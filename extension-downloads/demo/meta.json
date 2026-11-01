@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-10-31T21:40:27Z",
+  "fetched_at": "2026-11-01T06:34:11Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
@@ -16,7 +16,7 @@
   "last_week": "2026-W44",
   "weeks": 87,
   "extensions": 407,
-  "rows": 13063,
+  "rows": 13060,
   "missing_weeks": [
     "2024-W43",
     "2025-W22",
@@ -49,10 +49,6 @@
     {
       "week": "2025-W40",
       "last_update": "2025-10-02T04:00:40Z"
-    },
-    {
-      "week": "2026-W44",
-      "last_update": "2026-10-31T04:00:10Z"
     }
   ],
   "dropped_files": [
@@ -76,7 +72,7 @@
     },
     {
       "path": "downloads-last-week.json",
-      "last_update": "2026-10-31T04:00:10Z",
+      "last_update": "2026-11-01T04:00:10Z",
       "iso_week": "2026-W44",
       "reason": "same capture as download-stats-weekly/2026/44.json"
     }
@@ -187,7 +183,7 @@
         "now": "RGenomicsETL/ducknng"
       }
     ],
-    "stars": 9604,
+    "stars": 9607,
     "stars_history_from": "2026-10-30"
   }
 }
