@@ -6,7 +6,7 @@
 -- @description One contributor's downloads, share, rank, extensions and growth, against every community extension together.
 -- @vars contributor
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.30 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.2 (blueprint.json)
 --
 -- `contributor` (the dropdown, ?v.contributor=<name>, or a link from
 -- contributors.sql) picks the contributor; unset, the page shows
@@ -23,9 +23,10 @@
 -- weeks with data from 2025-11-10 (the first week the site lists every
 -- extension, so the overall total is comparable from there on) -- or, for
 -- a contributor with no downloads then, from its first week with
--- downloads after it. Linear axis: a young contributor's index runs into
--- the thousands while the ecosystem's stays in the hundreds, but the
--- pinned renderer's log ticks read 316.23 / 3,162.28 (anofox-visualization#413).
+-- downloads after it. Log axis: a young contributor's index runs into
+-- the thousands while the ecosystem's stays in the hundreds, and the same
+-- slope is the same growth rate (only weeks with downloads, so every
+-- index is positive).
 
 SELECT 'en-GB'::LOCALE;
 
@@ -130,9 +131,9 @@ long AS (
   SELECT week_start, (SELECT sel FROM sel_v) AS series, idx_c AS v FROM s
   UNION ALL
   SELECT week_start, 'All extensions', idx_t FROM s)
-SELECT week_start ::XAXIS, series ::CATEGORY, round(v, 1) ::LINECHART, 'comma'::YFORMAT, 100::REFLINE,
+SELECT week_start ::XAXIS, series ::CATEGORY, round(v, 1) ::LINECHART, 'log10'::YSCALE, 'comma'::YFORMAT, 100::REFLINE,
        (SELECT sel FROM sel_v) || ' vs all extensions, indexed (100 = weeks of ' || (SELECT strftime(s, '%-d %b %Y') FROM start) || ')' ::TITLE,
-       'Both lines are 100 at the mean of the base weeks: the 4 weeks with data from ' || (SELECT strftime(s, '%-d %b %Y') FROM start) || ', i.e. from 2025-11-10 (the first week the site lists every extension, so the total is comparable from there on) or the contributor''s first week with downloads after it. Linear axis (the pinned renderer''s log ticks are unround, anofox-visualization#413). A line above the other has grown faster since the base weeks.' ::INFO
+       'Both lines are 100 at the mean of the base weeks: the 4 weeks with data from ' || (SELECT strftime(s, '%-d %b %Y') FROM start) || ', i.e. from 2025-11-10 (the first week the site lists every extension, so the total is comparable from there on) or the contributor''s first week with downloads after it. Log axis: the same slope is the same growth rate. A line above the other has grown faster since the base weeks.' ::INFO
 FROM long
 ORDER BY week_start, series;
 

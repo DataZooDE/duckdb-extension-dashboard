@@ -6,7 +6,7 @@
 -- @description Every extension ranked by last week's downloads, with its trend, releases and stars; search by name or description, filter by contributor.
 -- @vars contributor, q
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.10.30 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.2 (blueprint.json)
 --
 -- `contributor` (the dropdown, ?v.contributor=<name>; default "(all)", every
 -- contributor) narrows the table and the KPI row to one contributor's
@@ -228,10 +228,9 @@ LIMIT 12;
 
 SELECT 'Column guide'::TAB;
 
--- The glossary of the "All extensions" table: an ::INFO popover shows only
--- plain text in a narrow box, and ::MARKDOWN renders no tables
--- (anofox-visualization v2026.10.30, anofox-visualization#759), so the
--- definitions live here, one row per column.
+-- The glossary of the "All extensions" table, one row per column: 13
+-- definitions are too long for an ::INFO popover, even with the line
+-- breaks it takes since v2026.11.1 (anofox-visualization#759).
 -- Two tables side by side (rows 1-7, 8-13), so the guide fits one screen.
 CREATE OR REPLACE TEMP VIEW col_guide AS
 SELECT * FROM (VALUES
