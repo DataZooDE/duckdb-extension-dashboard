@@ -2,7 +2,7 @@
   "name": "extension-downloads",
   "title": "DuckDB Extension Dashboard",
   "purpose": "How are DuckDB's community extensions being adopted, week by week?",
-  "anofox_visualization": "v2026.11.2",
+  "anofox_visualization": "v2026.11.3",
   "duckdb": "v1.5.6",
   "dashboards": [
     {

@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, downloads, github, stars, releases
 -- @description GitHub stars and community releases against downloads: how closely they go together, and who stands out.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.2 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.3 (blueprint.json)
 --
 -- Stars: extensions.parquet's `stars` (the repo's stargazerCount when
 -- scripts/fetch.sh ran; extensions sharing a repo share its stars, so
