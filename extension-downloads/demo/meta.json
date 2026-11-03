@@ -1,11 +1,11 @@
 {
-  "fetched_at": "2026-11-03T06:22:18Z",
+  "fetched_at": "2026-11-03T19:38:41Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
     "weekly": "https://community-extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json",
     "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
-    "extensions_commit": "58a79d44bbab038b831f9ce3a85f977baa1e9239",
+    "extensions_commit": "e87bb7c590dafab4f9b7ef959fa50e0946fc22b5",
     "builds": "https://community-extensions.duckdb.org/<version>/linux_amd64/<extension>.duckdb_extension.gz (HEAD: 200 = built)",
     "core": "https://extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json (DuckDB's core extensions, same format)",
     "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
@@ -81,7 +81,7 @@
       "reason": "same capture as download-stats-weekly/2026/45.json"
     }
   ],
-  "extensions_in_repo": 410,
+  "extensions_in_repo": 411,
   "contributors": 216,
   "unlisted_extensions": [
     "apple_health",
@@ -99,11 +99,11 @@
     "vortex"
   ],
   "releases": {
-    "extensions": 424,
-    "releases": 2275,
+    "extensions": 425,
+    "releases": 2286,
     "bulk": 75,
     "first": "2024-06-05",
-    "last": "2026-11-02"
+    "last": "2026-11-03"
   },
   "core": {
     "weeks": 50,
@@ -113,14 +113,14 @@
   },
   "builds": {
     "latest": "v2.0.0",
-    "built_latest": 266,
+    "built_latest": 271,
     "previous": "v1.5.6",
     "built_previous": 279,
-    "checked": 410
+    "checked": 411
   },
   "github": {
-    "repos": 407,
-    "repos_found": 405,
+    "repos": 408,
+    "repos_found": 406,
     "repos_not_found": [
       "Querio-App/duckdb-jev",
       "alberttwong/redis-adbc-driver"
@@ -141,10 +141,6 @@
       {
         "repo": "cwida/pac",
         "now": "cwida/privacy"
-      },
-      {
-        "repo": "dais-polymtl/flock",
-        "now": "dais-labo/flock"
       },
       {
         "repo": "elei-io/ducklake-cdc-extension",
@@ -191,7 +187,7 @@
         "now": "RGenomicsETL/ducknng"
       }
     ],
-    "stars": 9656,
+    "stars": 9666,
     "stars_history_from": "2026-10-30"
   }
 }
