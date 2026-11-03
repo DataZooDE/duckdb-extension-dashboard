@@ -74,7 +74,7 @@ from the pinned release, next to the parquet snapshot. Your browser runs each
 dashboard's SQL in DuckDB-Wasm, so the pickers re-query instantly.
 **What's live is the latest [release](https://github.com/DataZooDE/duckdb-extension-dashboard/releases)'s code with the newest data.**
 Commits on main go live only once they're released. [`update.yml`](.github/workflows/update.yml)
-runs daily at 06:30 UTC:
+runs daily at 04:30 UTC:
 
 1. **Fetch:** download the community and core metrics, the extension metadata and release history, DuckDB releases and the GitHub numbers, check which extensions are built for the newest DuckDB, and add the spike correction.
 2. **Check:** every dashboard on main passes `dashboard --check --strict` and a locked-server smoke test on the fresh data.

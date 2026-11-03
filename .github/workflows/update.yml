@@ -18,7 +18,7 @@ name: update data and publish
 # deploy on release (use a manual run).
 on:
   schedule:
-    - cron: '30 6 * * *'   # the site publishes weekly, around 04:00 UTC
+    - cron: '30 4 * * *'   # the files are rewritten daily at 04:00 UTC
   workflow_dispatch:
   release:
     types: [published]
