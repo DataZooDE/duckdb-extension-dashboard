@@ -113,7 +113,7 @@ FROM ext_owner o LEFT JOIN ext_weeks x ON x.extension = o.extension AND x.week_s
 WHERE o.contributor = (SELECT sel FROM sel_v);
 SELECT 1::ENDGROUP;
 
-SELECT 6::COL; SELECT 127::HEIGHT;
+SELECT 6::COL; SELECT 150::HEIGHT;
 SELECT 'This contributor has no downloads since 2025-11-10.'::EMPTY;
 WITH start AS (
   SELECT min(week_start) AS s FROM contrib_weeks
@@ -137,7 +137,7 @@ SELECT week_start ::XAXIS, series ::CATEGORY, round(v, 1) ::LINECHART, 'log10'::
 FROM long
 ORDER BY week_start, series;
 
-SELECT 6::COL; SELECT 127::HEIGHT;
+SELECT 6::COL; SELECT 150::HEIGHT;
 SELECT 'This contributor has no downloads in the data.'::EMPTY;
 SELECT week_start ::XAXIS, round(100.0 * downloads / total, 3) ::LINECHART, 'percent'::YFORMAT,
        'Share of all downloads, ' || (SELECT sel FROM sel_v) || ', since 10 Nov 2025' ::TITLE,

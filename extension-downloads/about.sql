@@ -46,7 +46,7 @@ SELECT 1::ENDGROUP;
 -- these pages, each box with what it holds in this snapshot.
 SELECT 'Overview'::TAB;
 
-SELECT 12::COL; SELECT 240::HEIGHT;
+SELECT 12::COL; SELECT 290::HEIGHT;
 WITH n(seq, id, label, val, kind) AS (
   SELECT 1, 'stats', 'Cloudflare download stats (weekly JSON)', (SELECT count(DISTINCT week_start) FROM read_parquet(getvariable('f_downloads'))), 'Source'
   UNION ALL SELECT 2, 'repo', 'duckdb/community-extensions (description.yml)', (SELECT count(*) FROM read_parquet(getvariable('f_extensions'))), 'Source'

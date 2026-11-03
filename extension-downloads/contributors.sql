@@ -91,7 +91,7 @@ SELECT 'Top contributors'::TAB;
 -- Top 15, twice: raw, and spike-corrected (downloads_corrected from the
 -- fetch step's scripts/spikes.sql: Hampel filter, real level shifts kept via
 -- anofox-forecast changepoints).
-SELECT 4::COL; SELECT 420::HEIGHT;
+SELECT 4::COL; SELECT 500::HEIGHT;
 SELECT contributor ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike in an extension' ELSE 'Steady' END ::CATEGORY,
        'Spike in an extension:warn; Steady:neutral'::COLORS,
@@ -103,7 +103,7 @@ FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws')
 -- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
 ORDER BY downloads ASC, contributor DESC;
 
-SELECT 4::COL; SELECT 420::HEIGHT;
+SELECT 4::COL; SELECT 500::HEIGHT;
 SELECT contributor ::XAXIS, downloads_corrected ::BARCHART_STACKED,
        CASE WHEN corrected_any THEN 'Spike corrected' ELSE 'As measured' END ::CATEGORY,
        'Spike corrected:warn; As measured:neutral'::COLORS,
@@ -119,7 +119,7 @@ ORDER BY downloads_corrected ASC, contributor DESC;
 -- 13 weeks with data (steadier than one week), the rest as Others (7
 -- series: design/many-series warns past 7); only
 -- from 2025-11-10, when the site started listing every extension.
-SELECT 4::COL; SELECT 420::HEIGHT;
+SELECT 4::COL; SELECT 500::HEIGHT;
 WITH top6 AS (SELECT contributor FROM contrib_weeks WHERE wi > getvariable('last_wi') - 13
               GROUP BY 1 ORDER BY sum(downloads) DESC, contributor LIMIT 6),
 s AS (SELECT week_start, CASE WHEN contributor IN (SELECT contributor FROM top6) THEN contributor ELSE 'Others' END AS who,

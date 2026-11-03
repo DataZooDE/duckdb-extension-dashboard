@@ -136,7 +136,7 @@ SELECT 1::ENDGROUP;
 -- renderer reads one series' ::XLINE column and skips overlapping labels).
 -- What each week covers is a "Data coverage" ::TRACK strip under the chart
 -- (no shading on the chart): top ~50 listed / every extension / no data.
-SELECT 6::COL; SELECT 189::HEIGHT;
+SELECT 6::COL; SELECT 230::HEIGHT;
 WITH span AS (
   SELECT range::DATE AS week_start
   FROM range((SELECT min(week_start) FROM weeks), getvariable('last_ws') + INTERVAL 1 DAY, INTERVAL 7 DAY)),
@@ -180,7 +180,7 @@ ORDER BY s.week_start;
 -- How many extensions: listed in the week's capture (with downloads), and
 -- listed in total so far (cumulative, by first week seen). The jump at
 -- 2025-11-10 is the site starting to list every extension, not growth.
-SELECT 3::COL; SELECT 209::HEIGHT;
+SELECT 3::COL; SELECT 250::HEIGHT;
 WITH per AS (
   SELECT week_start, count(*) AS listed FROM ext_weeks GROUP BY week_start),
 firsts AS (
@@ -200,7 +200,7 @@ SELECT week_start ::XAXIS, series ::CATEGORY, v ::LINECHART,
        'With downloads: extensions in that week''s capture. Listed in total: every extension seen so far (cumulative by first week). Before 2025-11-10 the site listed only about the top 50, so the jump there is coverage, not growth.'::INFO
 FROM long ORDER BY week_start, series;
 
-SELECT 3::COL; SELECT 209::HEIGHT;
+SELECT 3::COL; SELECT 250::HEIGHT;
 SELECT extension ::XAXIS, downloads ::BARCHART_STACKED,
        CASE WHEN spike THEN 'Spike' ELSE 'Steady' END ::CATEGORY, 'Spike:warn; Steady:neutral'::COLORS,
        1::FLIP, '/d/extension?v.extension={x}'::LINK,
@@ -286,7 +286,7 @@ SELECT 1::ENDGROUP;
 
 -- Both totals per week, on a log scale (core is ~10x community; equal
 -- slopes = equal growth).
-SELECT 8::COL; SELECT 420::HEIGHT;
+SELECT 8::COL; SELECT 500::HEIGHT;
 SELECT week_start ::XAXIS, series ::CATEGORY, v ::LINECHART, 'log10'::YSCALE, 'comma'::YFORMAT,
        'Core vs community extension downloads per week (log scale)' ::TITLE,
        'Weekly INSTALL downloads of all of DuckDB''s core extensions and of all community extensions, in the weeks both files have since the 2025-11-10 listing change (core from 1 Dec 2025). The community total also spike-corrected (scripts/spikes.sql); core is as published. On a log scale the same slope means the same growth rate. The latest week is usually a mid-week capture.'::INFO
@@ -300,7 +300,7 @@ ORDER BY week_start, series;
 -- Where community extensions stand among the core ones: the top 20 of
 -- both lists together in the latest week. A name in both lists (moved into
 -- core) gets its list in brackets.
-SELECT 4::COL; SELECT 420::HEIGHT;
+SELECT 4::COL; SELECT 500::HEIGHT;
 WITH b AS (
   SELECT extension, downloads, 'Core' AS kind FROM read_parquet(getvariable('f_core')) WHERE week_start = getvariable('both_last')
   UNION ALL

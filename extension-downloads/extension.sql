@@ -166,7 +166,7 @@ SELECT 1::ENDGROUP;
 -- Weekly downloads, raw and 4-week median, with the "No data" gaps of the
 -- whole series shaded (each band hangs on the extension's last listed week
 -- before the gap) and a tick strip of this extension's spikes under it.
-SELECT 8::COL; SELECT 190::HEIGHT;
+SELECT 8::COL; SELECT 230::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 WITH span AS (
   SELECT range::DATE AS week_start
@@ -269,7 +269,7 @@ WHERE c.week_start = getvariable('last_ws') AND c.rnk BETWEEN me.rnk - 3 AND me.
 ORDER BY c.rnk, c.extension;
 
 -- Rank and share: one line per extension (the comparison's too).
-SELECT 4::COL; SELECT 135::HEIGHT;
+SELECT 4::COL; SELECT 160::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 SELECT week_start ::XAXIS, extension ::CATEGORY, rnk ::LINECHART, 'reverse'::YSCALE,
        'Rank by week (1 = most downloaded)' ::TITLE,
@@ -277,7 +277,7 @@ SELECT week_start ::XAXIS, extension ::CATEGORY, rnk ::LINECHART, 'reverse'::YSC
 FROM ext_weeks WHERE extension IN ((SELECT sel FROM sel_v), (SELECT cmp FROM cmp_v))
 ORDER BY week_start, extension = (SELECT sel FROM sel_v) DESC;
 
-SELECT 4::COL; SELECT 135::HEIGHT;
+SELECT 4::COL; SELECT 160::HEIGHT;
 SELECT 'This extension is not in the data.'::EMPTY;
 SELECT week_start ::XAXIS, extension ::CATEGORY, round(100.0 * downloads / total, 3) ::LINECHART, 'percent'::YFORMAT,
        'Share of all downloads' ::TITLE,

@@ -133,7 +133,7 @@ SELECT 1::ENDGROUP;
 -- far it sits from the fit; 14 labelled, the furthest from the fit weighted
 -- by stars (so a 300-star outlier wins over a 1-star one). Hovering a dot
 -- shows that extension; clicking it opens the extension page.
-SELECT 8::COL; SELECT 232::HEIGHT;
+SELECT 8::COL; SELECT 280::HEIGHT;
 SELECT stars ::XAXIS, round(usage) ::SCATTER,
        -- the least-squares line of the fit view: on the log-log axes it is
        -- straight, log10(downloads) = a + b * log10(stars)
@@ -156,7 +156,7 @@ SELECT stars ::XAXIS, round(usage) ::SCATTER,
 FROM ext_fit WHERE vs_fit IS NOT NULL
 ORDER BY stars, extension;
 
-SELECT 4::COL; SELECT 232::HEIGHT;
+SELECT 4::COL; SELECT 280::HEIGHT;
 SELECT contributor ::XAXIS, stars ::BARCHART, 1::FLIP, '/d/contributor?v.contributor={x}'::LINK,
        'Most-starred contributors' ::TITLE,
        'Stars over all of a contributor''s extension repos, each repo once. Click a bar to open the contributor.'::INFO
@@ -225,7 +225,7 @@ FROM ext_act;
 SELECT 1::ENDGROUP;
 
 -- Releases per week since the repo started, by kind.
-SELECT 8::COL; SELECT 232::HEIGHT;
+SELECT 8::COL; SELECT 280::HEIGHT;
 SELECT week_start ::XAXIS, n ::BARCHART_STACKED,
        CASE kind WHEN 'release' THEN 'Maintainer release' WHEN 'first' THEN 'First listing' ELSE 'DuckDB-team bulk update' END ::CATEGORY,
        'Maintainer release:#2563eb; First listing:#16a34a; DuckDB-team bulk update:#9ca3af'::COLORS,
@@ -235,7 +235,7 @@ FROM (SELECT week_start, kind, count(*) AS n FROM read_parquet(getvariable('f_ex
       WHERE released_at <= getvariable('ref_ts') GROUP BY ALL)
 ORDER BY week_start, kind;
 
-SELECT 4::COL; SELECT 232::HEIGHT;
+SELECT 4::COL; SELECT 280::HEIGHT;
 SELECT b ::XAXIS, med ::BARCHART, 'comma'::YFORMAT,
        'Weekly downloads by releases in the last 90 days' ::TITLE,
        'Median weekly downloads (last 4 weeks with data, spike-corrected) of the extensions with that many releases in the 90 days to ' || getvariable('last_label') || '; the number of extensions in brackets, highest first.'::INFO
