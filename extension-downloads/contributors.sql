@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, downloads, contributors
 -- @description Every contributor (the GitHub owner of an extension's repo) ranked by last week's downloads, the top 15, and the top 8's share over time.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.3 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.4 (blueprint.json)
 --
 -- A contributor is the GitHub org or user that owns an extension's repo
 -- (extensions.parquet's `owner`, from repo.github in the extension's
@@ -100,8 +100,7 @@ SELECT contributor ::XAXIS, downloads ::BARCHART_STACKED,
        'Downloads of all of a contributor''s extensions together, 7 days to ' || getvariable('last_label') || '. Click a bar to open the contributor.'::INFO
 FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws')
       ORDER BY downloads DESC, contributor LIMIT 15)
--- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
-ORDER BY downloads ASC, contributor DESC;
+ORDER BY downloads DESC, contributor;
 
 SELECT 4::COL; SELECT 500::HEIGHT;
 SELECT contributor ::XAXIS, downloads_corrected ::BARCHART_STACKED,
@@ -112,8 +111,7 @@ SELECT contributor ::XAXIS, downloads_corrected ::BARCHART_STACKED,
        'Each extension''s spike weeks replaced by their 9-week window median: a Hampel filter (more than max(3 x 1.4826 x MAD, the median) above the median, at least 1,000 downloads), keeping real level shifts that anofox-forecast''s changepoint detection confirms over the next 3 weeks. anofox-statistics'' AID outlier flags agree on 90 % of these spikes. A last-week jump counts as a spike until it lasts.'::INFO
 FROM (SELECT * FROM contrib_weeks WHERE week_start = getvariable('last_ws')
       ORDER BY downloads_corrected DESC, contributor LIMIT 15)
--- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
-ORDER BY downloads_corrected ASC, contributor DESC;
+ORDER BY downloads_corrected DESC, contributor;
 
 -- Share over time: the 6 contributors with the most downloads over the last
 -- 13 weeks with data (steadier than one week), the rest as Others (7

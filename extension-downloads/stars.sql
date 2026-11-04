@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, downloads, github, stars, releases
 -- @description GitHub stars and community releases against downloads: how closely they go together, and who stands out.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.3 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.4 (blueprint.json)
 --
 -- Stars: extensions.parquet's `stars` (the repo's stargazerCount when
 -- scripts/fetch.sh ran; extensions sharing a repo share its stars, so
@@ -162,8 +162,7 @@ SELECT contributor ::XAXIS, stars ::BARCHART, 1::FLIP, '/d/contributor?v.contrib
        'Stars over all of a contributor''s extension repos, each repo once. Click a bar to open the contributor.'::INFO
 FROM (SELECT contributor, sum(stars) AS stars FROM (SELECT DISTINCT contributor, repo, stars FROM ext_stars)
       GROUP BY contributor ORDER BY stars DESC, contributor LIMIT 12)
--- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
-ORDER BY stars ASC, contributor DESC;
+ORDER BY stars DESC, contributor;
 
 SELECT 6::COL;
 SELECT 'none'::TOOLBAR;

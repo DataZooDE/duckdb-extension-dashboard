@@ -5,7 +5,7 @@
 -- @tags duckdb, community extensions, downloads, growth
 -- @description Weekly installs of DuckDB community extensions: the total, the top 15, movers and newcomers, and community against DuckDB's core extensions.
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.3 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.4 (blueprint.json)
 --
 -- Home dashboard (locked.json's "home"). Reads one file,
 -- <anofox_data>/downloads.parquet, written by scripts/fetch.sh (one row per
@@ -257,8 +257,7 @@ SELECT extension ::XAXIS, downloads ::BARCHART_STACKED,
        'Spike: more than 5x the median of the extension''s previous 8 listed weeks (at least 4 of them, and at least 1,000 downloads). Click a bar to open the extension.'::INFO
 FROM (SELECT * FROM ext_weeks WHERE week_start = getvariable('last_ws')
       ORDER BY downloads DESC, extension LIMIT 15)
--- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
-ORDER BY downloads ASC, extension DESC;
+ORDER BY downloads DESC, extension;
 
 -- Movers: the latest capture against the mean of the 4 weeks with data
 -- before it; at least 1,000 downloads on one side, so tiny extensions
@@ -360,5 +359,4 @@ SELECT CASE WHEN n > 1 THEN extension || ' (' || lower(kind) || ')' ELSE extensi
        'Top 20, core and community together' ::TITLE,
        'The 20 most-downloaded extensions of either list in the latest week both have. Green: community extensions.'::INFO
 FROM t
--- a flipped bar chart draws the first row at the bottom: ascending, so #1 is on top
-ORDER BY downloads ASC, extension DESC;
+ORDER BY downloads DESC, extension;
