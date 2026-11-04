@@ -25,6 +25,7 @@
 - **Stars vs downloads:** every extension repo's GitHub stars against its usage. Stars explain only about a tenth of the spread in downloads, and the page lists the extensions used far more, or far less, than their stars suggest.
 - **Releases vs downloads:** every extension's community releases, from the history of duckdb/community-extensions. Extensions with a release in the last 90 days have about twice the downloads, and downloads rise more after a release than in other weeks.
 - **Honest numbers:** one-off spikes (CI or bot traffic) are flagged and corrected with a Hampel filter. Real growth is kept, confirmed by [anofox-forecast](https://github.com/DataZooDE/anofox-forecast)'s changepoint detection. Missing weeks show as gaps, never as zeros.
+- **How much is automation?** About one download in four (23 %, 95 % interval 15–38 %) comes from mirrors, scanners and CI, estimated from the DuckDB 2.0 release, when extensions nobody uses jumped 12.7-fold for two weeks. By star group on the About page; the evaluation behind it (a floor, regression and autoregressive models compared) is in [`extension-downloads/analysis/`](extension-downloads/analysis/).
 - **Always current:** a GitHub Action fetches the data daily, checks every dashboard, and republishes.
 
 <table>
@@ -48,7 +49,7 @@
 | [Contributors](https://datazoode.github.io/duckdb-extension-dashboard/d/contributors/) | Who builds the ecosystem? | [`contributors.sql`](extension-downloads/contributors.sql) |
 | [Contributor](https://datazoode.github.io/duckdb-extension-dashboard/d/contributor/) | How is one contributor doing vs everyone else? | [`contributor.sql`](extension-downloads/contributor.sql) |
 | [Stars & releases](https://datazoode.github.io/duckdb-extension-dashboard/d/stars/) | Do stars and releases go with downloads? | [`stars.sql`](extension-downloads/stars.sql) |
-| [About](https://datazoode.github.io/duckdb-extension-dashboard/d/about/) | Who made this, and how current is the data? | [`about.sql`](extension-downloads/about.sql) |
+| [About](https://datazoode.github.io/duckdb-extension-dashboard/d/about/) | Who made this, how current is the data, and how much of it is automated? | [`about.sql`](extension-downloads/about.sql) |
 
 Every page is **one plain SQL file**. Charts, KPIs, tables and pickers are SQL
 columns with a role (`downloads::LINECHART`, `'Top 15'::TITLE`, …), rendered by

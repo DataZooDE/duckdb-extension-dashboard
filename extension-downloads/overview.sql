@@ -107,6 +107,51 @@ JOIN (SELECT week_start, sum(downloads_corrected) AS community_corrected
 WHERE c.week_start >= getvariable('full_list_from');
 SET VARIABLE both_last = (SELECT max(week_start) FROM both_weeks);
 
+-- Automated share (the same block in overview.sql and about.sql;
+-- extension-downloads/analysis/ has the evaluation behind it). The latest
+-- x.0.0 DuckDB release is a natural experiment: in its week and the next,
+-- the downloads of the no-audience extensions (built for a current DuckDB,
+-- <= 2 GitHub stars) jump k-fold (12.7x for 2.0.0), far more than users can
+-- reinstall. An extension's jump r = s*k + (1-s)*h gives its automated
+-- share s = (r - h)/(k - h), h = the users' own release bump (assumed 1.5;
+-- 1.0 and 2.0 as bounds). Per extension s is noise (half outside 0-1, and
+-- 1.5.0 ranks extensions differently), so only sums are shown: the share
+-- of all downloads, weighted by each extension's normal week (the median of
+-- the 5 captures before), with a 95% bootstrap interval over extensions
+-- (200 resamples, drawn with hash() so every run gives the same numbers).
+SET VARIABLE auto_rel = (SELECT max(published) FROM read_parquet(getvariable('f_releases')) WHERE regexp_matches(versions, '^v\d+\.0\.0'));
+SET VARIABLE auto_ws = date_trunc('week', getvariable('auto_rel'))::DATE;
+CREATE OR REPLACE TEMP VIEW auto_jump AS
+WITH d AS (SELECT extension, week_start, downloads, provisional FROM read_parquet(getvariable('f_downloads'))),
+x AS (SELECT extension, min(week_start) AS first_seen,
+        avg(downloads) FILTER (WHERE week_start IN (getvariable('auto_ws'), getvariable('auto_ws') + 7)) AS aft,
+        count(*) FILTER (WHERE week_start IN (getvariable('auto_ws'), getvariable('auto_ws') + 7) AND NOT provisional) AS na,
+        median(downloads) FILTER (WHERE week_start BETWEEN getvariable('auto_ws') - 35 AND getvariable('auto_ws') - 7) AS bef,
+        count(*) FILTER (WHERE week_start BETWEEN getvariable('auto_ws') - 35 AND getvariable('auto_ws') - 7) AS nb
+      FROM d GROUP BY extension)
+SELECT x.extension, e.stars, coalesce(e.built_latest OR e.built_previous, false) AS built, x.bef, x.aft, x.aft / x.bef AS r,
+       CASE WHEN e.stars <= 2 THEN '≤ 2 stars' WHEN e.stars < 20 THEN '3–19 stars' WHEN e.stars < 100 THEN '20–99 stars' ELSE '100+ stars' END AS star_group,
+       row_number() OVER (ORDER BY x.extension) - 1 AS id
+FROM x JOIN read_parquet(getvariable('f_extensions')) e USING (extension)
+WHERE x.na = 2 AND x.nb >= 3 AND x.bef >= 50 AND x.first_seen <= getvariable('auto_ws') - 35 AND e.stars IS NOT NULL;
+CREATE OR REPLACE TEMP VIEW auto_k AS
+SELECT median(r) AS k, count(*) AS n FROM auto_jump WHERE built AND stars <= 2;
+-- b = -1: the data as they are; b = 0..199: resamples of the extensions
+CREATE OR REPLACE TEMP VIEW auto_boot AS
+WITH n AS (SELECT count(*) AS n FROM auto_jump),
+draws AS (SELECT -1 AS b, id FROM auto_jump
+          UNION ALL SELECT b, (hash(b, i) % n)::BIGINT FROM n, range(200) t(b), range(n) u(i)),
+rs AS (SELECT d.b, j.* FROM draws d JOIN auto_jump j USING (id)),
+kb AS (SELECT b, median(r) AS k FROM rs WHERE built AND stars <= 2 GROUP BY b)
+SELECT b, h, star_group, sum(least(greatest((r - h) / (k - h), 0), 1) * bef) AS auto_dl, sum(bef) AS dl
+FROM rs JOIN kb USING (b), (SELECT unnest([1.0, 1.5, 2.0]) AS h) GROUP BY ALL;
+CREATE OR REPLACE TEMP VIEW auto_share AS
+WITH g AS (SELECT b, h, star_group, auto_dl / dl AS s FROM auto_boot
+           UNION ALL SELECT b, h, 'All extensions', sum(auto_dl) / sum(dl) FROM auto_boot GROUP BY b, h)
+SELECT h, star_group, any_value(s) FILTER (WHERE b = -1) AS est,
+       quantile_cont(s, 0.025) FILTER (WHERE b >= 0) AS lo, quantile_cont(s, 0.975) FILTER (WHERE b >= 0) AS hi
+FROM g GROUP BY h, star_group;
+
 SELECT 'Community extensions'::TAB;
 
 -- KPI strip: untitled, two lines per tile (value + label).
@@ -129,6 +174,10 @@ SELECT downloads ::METRIC,
        'Top: ' || extension || ' (' || printf('%.1f', 100.0 * downloads / total) || '%' || CASE WHEN spike THEN ', a spike' ELSE '' END || ')' ::LABEL,
        'The most-downloaded extension in the latest capture and its share of all downloads; "a spike" when that week is more than 5x its recent median (see the movers table).'::INFO
 FROM ext_weeks WHERE week_start = getvariable('last_ws') ORDER BY downloads DESC, extension LIMIT 1;
+SELECT round(100 * est) ::PERCENT,
+       'Likely automated (' || round(100 * lo)::INT || '–' || round(100 * hi)::INT || '%)' ::LABEL,
+       'Estimated share of community-extension downloads that come from automation (mirrors, scanners, CI matrices) rather than people, with its 95% interval. From the DuckDB ' || (SELECT versions FROM read_parquet(getvariable('f_releases')) WHERE published = getvariable('auto_rel')) || ' release: the downloads of extensions with no audience jumped ' || (SELECT round(k, 1) FROM auto_k) || 'x for two weeks, and how far each extension followed shows its automated part. How: About, Automated downloads.' ::INFO
+FROM auto_share WHERE h = 1.5 AND star_group = 'All extensions';
 SELECT 1::ENDGROUP;
 
 -- The total, raw and 4-week median, with DuckDB releases as ::XLINEs (the
