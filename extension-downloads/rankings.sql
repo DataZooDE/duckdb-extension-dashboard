@@ -6,7 +6,7 @@
 -- @description Every extension ranked by last week's downloads, with its trend, releases and stars; search by name or description, filter by contributor.
 -- @vars contributor, q
 --
--- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.4 (blueprint.json)
+-- Blueprint extension-downloads · pinned to anofox-visualization v2026.11.5 (blueprint.json)
 --
 -- `contributor` (the dropdown, ?v.contributor=<name>; default "(all)", every
 -- contributor) narrows the table and the KPI row to one contributor's
