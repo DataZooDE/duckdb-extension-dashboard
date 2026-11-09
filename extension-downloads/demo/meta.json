@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-11-08T04:32:19Z",
+  "fetched_at": "2026-11-09T04:32:29Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
@@ -13,10 +13,10 @@
   },
   "what": "Cloudflare's estimate of INSTALL downloads per community extension, all platforms and versions together, per week.",
   "first_week": "2024-W40",
-  "last_week": "2026-W45",
-  "weeks": 88,
+  "last_week": "2026-W46",
+  "weeks": 89,
   "extensions": 429,
-  "rows": 13464,
+  "rows": 13867,
   "missing_weeks": [
     "2024-W43",
     "2025-W22",
@@ -49,6 +49,10 @@
     {
       "week": "2025-W40",
       "last_update": "2025-10-02T04:00:40Z"
+    },
+    {
+      "week": "2026-W46",
+      "last_update": "2026-11-09T04:00:26Z"
     }
   ],
   "dropped_files": [
@@ -72,9 +76,9 @@
     },
     {
       "path": "downloads-last-week.json",
-      "last_update": "2026-11-08T04:00:27Z",
-      "iso_week": "2026-W45",
-      "reason": "same capture as download-stats-weekly/2026/45.json"
+      "last_update": "2026-11-09T04:00:26Z",
+      "iso_week": "2026-W46",
+      "reason": "same capture as download-stats-weekly/2026/46.json"
     }
   ],
   "extensions_in_repo": 417,
@@ -102,9 +106,9 @@
     "last": "2026-11-07"
   },
   "core": {
-    "weeks": 50,
+    "weeks": 51,
     "first_week": "2025-W39",
-    "last_week": "2026-W45",
+    "last_week": "2026-W46",
     "extensions": 44
   },
   "builds": {
@@ -183,7 +187,7 @@
         "now": "RGenomicsETL/ducknng"
       }
     ],
-    "stars": 10833,
+    "stars": 10844,
     "stars_history_from": "2026-10-30"
   }
 }
