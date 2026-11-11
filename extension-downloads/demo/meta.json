@@ -1,11 +1,11 @@
 {
-  "fetched_at": "2026-11-10T04:32:34Z",
+  "fetched_at": "2026-11-11T04:32:42Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
     "weekly": "https://community-extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json",
     "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
-    "extensions_commit": "ada048dabffef80861e3e620d02e73eaae0aca90",
+    "extensions_commit": "7b129d584e58821a32d09407253602318dced31b",
     "builds": "https://community-extensions.duckdb.org/<version>/linux_amd64/<extension>.duckdb_extension.gz (HEAD: 200 = built)",
     "core": "https://extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json (DuckDB's core extensions, same format)",
     "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
@@ -52,7 +52,7 @@
     },
     {
       "week": "2026-W46",
-      "last_update": "2026-11-10T04:00:26Z"
+      "last_update": "2026-11-11T04:00:26Z"
     }
   ],
   "dropped_files": [
@@ -76,7 +76,7 @@
     },
     {
       "path": "downloads-last-week.json",
-      "last_update": "2026-11-10T04:00:26Z",
+      "last_update": "2026-11-11T04:00:26Z",
       "iso_week": "2026-W46",
       "reason": "same capture as download-stats-weekly/2026/46.json"
     }
@@ -100,10 +100,10 @@
   ],
   "releases": {
     "extensions": 432,
-    "releases": 2314,
+    "releases": 2331,
     "bulk": 75,
     "first": "2024-06-05",
-    "last": "2026-11-09"
+    "last": "2026-11-10"
   },
   "core": {
     "weeks": 51,
@@ -115,7 +115,7 @@
     "latest": "v2.0.0",
     "built_latest": 281,
     "previous": "v1.5.6",
-    "built_previous": 281,
+    "built_previous": 283,
     "checked": 418
   },
   "github": {
@@ -187,7 +187,7 @@
         "now": "RGenomicsETL/ducknng"
       }
     ],
-    "stars": 10879,
+    "stars": 10894,
     "stars_history_from": "2026-10-30"
   }
 }
