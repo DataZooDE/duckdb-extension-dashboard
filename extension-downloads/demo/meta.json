@@ -1,11 +1,11 @@
 {
-  "fetched_at": "2026-11-22T04:32:03Z",
+  "fetched_at": "2026-11-23T04:34:29Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
     "weekly": "https://community-extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json",
     "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
-    "extensions_commit": "f47566c75b6043e76492122d458a0a19c42c3f8f",
+    "extensions_commit": "58b67020380e58007f2cc6f040c385d6428e59d5",
     "builds": "https://community-extensions.duckdb.org/<version>/linux_amd64/<extension>.duckdb_extension.gz (HEAD: 200 = built)",
     "core": "https://extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json (DuckDB's core extensions, same format)",
     "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
@@ -13,10 +13,10 @@
   },
   "what": "Cloudflare's estimate of INSTALL downloads per community extension, all platforms and versions together, per week.",
   "first_week": "2024-W40",
-  "last_week": "2026-W47",
-  "weeks": 90,
-  "extensions": 454,
-  "rows": 14317,
+  "last_week": "2026-W48",
+  "weeks": 91,
+  "extensions": 458,
+  "rows": 14760,
   "missing_weeks": [
     "2024-W43",
     "2025-W22",
@@ -49,6 +49,10 @@
     {
       "week": "2025-W40",
       "last_update": "2025-10-02T04:00:40Z"
+    },
+    {
+      "week": "2026-W48",
+      "last_update": "2026-11-23T04:00:29Z"
     }
   ],
   "dropped_files": [
@@ -72,12 +76,12 @@
     },
     {
       "path": "downloads-last-week.json",
-      "last_update": "2026-11-22T04:00:26Z",
-      "iso_week": "2026-W47",
-      "reason": "same capture as download-stats-weekly/2026/47.json"
+      "last_update": "2026-11-23T04:00:29Z",
+      "iso_week": "2026-W48",
+      "reason": "same capture as download-stats-weekly/2026/48.json"
     }
   ],
-  "extensions_in_repo": 442,
+  "extensions_in_repo": 446,
   "contributors": 228,
   "unlisted_extensions": [
     "apple_health",
@@ -95,16 +99,16 @@
     "vortex"
   ],
   "releases": {
-    "extensions": 456,
-    "releases": 2414,
+    "extensions": 460,
+    "releases": 2433,
     "bulk": 75,
     "first": "2024-06-05",
-    "last": "2026-11-21"
+    "last": "2026-11-22"
   },
   "core": {
-    "weeks": 52,
+    "weeks": 53,
     "first_week": "2025-W39",
-    "last_week": "2026-W47",
+    "last_week": "2026-W48",
     "extensions": 45
   },
   "builds": {
@@ -112,11 +116,11 @@
     "built_latest": 272,
     "previous": "v1.5.6",
     "built_previous": 286,
-    "checked": 442
+    "checked": 446
   },
   "github": {
-    "repos": 438,
-    "repos_found": 437,
+    "repos": 442,
+    "repos_found": 441,
     "repos_not_found": [
       "Querio-App/duckdb-jev"
     ],
@@ -186,7 +190,7 @@
         "now": "lunateque/quackiso"
       }
     ],
-    "stars": 11089,
+    "stars": 11098,
     "stars_history_from": "2026-10-30"
   }
 }
