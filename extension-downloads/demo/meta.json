@@ -1,11 +1,11 @@
 {
-  "fetched_at": "2026-11-23T04:34:29Z",
+  "fetched_at": "2026-11-24T04:32:43Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
     "weekly": "https://community-extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json",
     "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
-    "extensions_commit": "58b67020380e58007f2cc6f040c385d6428e59d5",
+    "extensions_commit": "971d4d7eb0fe80716c4ecfb94eae2136b213e6ae",
     "builds": "https://community-extensions.duckdb.org/<version>/linux_amd64/<extension>.duckdb_extension.gz (HEAD: 200 = built)",
     "core": "https://extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json (DuckDB's core extensions, same format)",
     "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
@@ -16,7 +16,7 @@
   "last_week": "2026-W48",
   "weeks": 91,
   "extensions": 458,
-  "rows": 14760,
+  "rows": 14756,
   "missing_weeks": [
     "2024-W43",
     "2025-W22",
@@ -52,7 +52,7 @@
     },
     {
       "week": "2026-W48",
-      "last_update": "2026-11-23T04:00:29Z"
+      "last_update": "2026-11-24T04:00:27Z"
     }
   ],
   "dropped_files": [
@@ -76,7 +76,7 @@
     },
     {
       "path": "downloads-last-week.json",
-      "last_update": "2026-11-23T04:00:29Z",
+      "last_update": "2026-11-24T04:00:27Z",
       "iso_week": "2026-W48",
       "reason": "same capture as download-stats-weekly/2026/48.json"
     }
@@ -100,10 +100,10 @@
   ],
   "releases": {
     "extensions": 460,
-    "releases": 2433,
+    "releases": 2452,
     "bulk": 75,
     "first": "2024-06-05",
-    "last": "2026-11-22"
+    "last": "2026-11-23"
   },
   "core": {
     "weeks": 53,
@@ -113,9 +113,9 @@
   },
   "builds": {
     "latest": "v2.0.1",
-    "built_latest": 272,
+    "built_latest": 280,
     "previous": "v1.5.6",
-    "built_previous": 286,
+    "built_previous": 287,
     "checked": 446
   },
   "github": {
@@ -190,7 +190,7 @@
         "now": "lunateque/quackiso"
       }
     ],
-    "stars": 11098,
+    "stars": 11134,
     "stars_history_from": "2026-10-30"
   }
 }
