@@ -1,11 +1,11 @@
 {
-  "fetched_at": "2026-11-26T04:32:29Z",
+  "fetched_at": "2026-11-27T04:32:48Z",
   "sources": {
     "page": "https://duckdb.org/community_extensions/download_metrics",
     "last_week": "https://community-extensions.duckdb.org/downloads-last-week.json",
     "weekly": "https://community-extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json",
     "extensions": "https://github.com/duckdb/community-extensions/tree/main/extensions (each <name>/description.yml)",
-    "extensions_commit": "5545cd44434bdee1e1885baa6f0b91ec7ebba630",
+    "extensions_commit": "893c9eaf002745c37c5582990c9faf393b056678",
     "builds": "https://community-extensions.duckdb.org/<version>/linux_amd64/<extension>.duckdb_extension.gz (HEAD: 200 = built)",
     "core": "https://extensions.duckdb.org/download-stats-weekly/{YEAR}/{WEEK}.json (DuckDB's core extensions, same format)",
     "releases": "the history of each extensions/<name>/description.yml on main of duckdb/community-extensions (a new repo.ref = a release)",
@@ -15,7 +15,7 @@
   "first_week": "2024-W40",
   "last_week": "2026-W48",
   "weeks": 91,
-  "extensions": 459,
+  "extensions": 461,
   "rows": 14756,
   "missing_weeks": [
     "2024-W43",
@@ -52,7 +52,7 @@
     },
     {
       "week": "2026-W48",
-      "last_update": "2026-11-26T04:00:27Z"
+      "last_update": "2026-11-27T04:00:26Z"
     }
   ],
   "dropped_files": [
@@ -76,13 +76,13 @@
     },
     {
       "path": "downloads-last-week.json",
-      "last_update": "2026-11-26T04:00:27Z",
+      "last_update": "2026-11-27T04:00:26Z",
       "iso_week": "2026-W48",
       "reason": "same capture as download-stats-weekly/2026/48.json"
     }
   ],
-  "extensions_in_repo": 447,
-  "contributors": 228,
+  "extensions_in_repo": 449,
+  "contributors": 229,
   "unlisted_extensions": [
     "apple_health",
     "avro",
@@ -99,11 +99,11 @@
     "vortex"
   ],
   "releases": {
-    "extensions": 461,
-    "releases": 2486,
+    "extensions": 463,
+    "releases": 2509,
     "bulk": 75,
     "first": "2024-06-05",
-    "last": "2026-11-25"
+    "last": "2026-11-26"
   },
   "core": {
     "weeks": 53,
@@ -113,14 +113,14 @@
   },
   "builds": {
     "latest": "v2.0.1",
-    "built_latest": 293,
+    "built_latest": 305,
     "previous": "v1.5.6",
     "built_previous": 288,
-    "checked": 447
+    "checked": 449
   },
   "github": {
-    "repos": 443,
-    "repos_found": 442,
+    "repos": 445,
+    "repos_found": 444,
     "repos_not_found": [
       "Querio-App/duckdb-jev"
     ],
@@ -190,7 +190,7 @@
         "now": "lunateque/quackiso"
       }
     ],
-    "stars": 11229,
+    "stars": 11245,
     "stars_history_from": "2026-10-30"
   }
 }
